@@ -1,0 +1,57 @@
+name:                tush
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/Fizzixnerd/tush#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Matt Walker
+maintainer:          matt.g.d.walker@gmail.com
+copyright:           Matt Walker
+category:            Web
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Tush.Parse
+                     , Lib
+  build-depends:       base >= 4.7 && < 5,
+                       containers,
+                       mtl,
+                       megaparsec,
+                       text,
+                       vector
+  default-language:    Haskell2010
+
+executable tush-exe
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , containers
+                     , mtl
+                     , parsec
+                     , text
+                     , tush
+                     , vector
+  default-language:    Haskell2010
+
+test-suite tush-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , containers
+                     , mtl
+                     , parsec
+                     , text
+                     , tush
+                     , vector
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/Fizzixnerd/tush

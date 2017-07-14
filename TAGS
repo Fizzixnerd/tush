@@ -1,0 +1,43 @@
+
+./Setup.hs,15
+main main1,2
+
+./app/Main.hs,52
+module Main Main0,1
+main main4,5
+main main5,6
+
+./src/Lib.hs,65
+module LibLib0,1
+someFunc someFunc4,5
+someFunc someFunc5,6
+
+./src/Tush/Parse.hs,1033
+module Tush.Parse Tush.Parse18,19
+newtype RelativePath RelativePath40,41
+newtype RelativePath = RelativePath RelativePath40,41
+newtype AbsolutePath AbsolutePath41,42
+newtype AbsolutePath = AbsolutePath AbsolutePath41,42
+type PathBody PathBody42,43
+type PathComponent PathComponent43,44
+text text45,46
+text text46,47
+unquotedPathComponent unquotedPathComponent48,49
+unquotedPathComponent unquotedPathComponent49,50
+unquotedPathBody unquotedPathBody54,55
+unquotedPathBody unquotedPathBody55,56
+pathSeparatorChar pathSeparatorChar57,58
+pathSeparatorChar pathSeparatorChar58,59
+pathSeparator pathSeparator60,61
+pathSeparator pathSeparator61,62
+relativePathStarterText relativePathStarterText65,66
+relativePathStarterText relativePathStarterText66,67
+relativePathStarter relativePathStarter68,69
+relativePathStarter relativePathStarter69,70
+unquotedRelativePath unquotedRelativePath73,74
+unquotedRelativePath unquotedRelativePath74,75
+testUnquotedRealtivePath testUnquotedRealtivePath76,77
+
+./test/Spec.hs,30
+main main0,1
+main main1,2

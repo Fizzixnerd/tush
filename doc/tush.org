@@ -1,0 +1,125 @@
+* tush
+
+  =tush= is a language for a /typed unix shell/.  It is also a Haskell
+  library (=Language.Tush=) and an interpreter (=tushi=) for the
+  language.
+
+  There is another shell named =tush= based on similar ideas, and was
+  written first.  See [[https://github.com/Fedjmike/tush][here]].
+
+** Language Design
+
+   - Haskell-like syntax.
+   - Static typing, type inference, typeclasses, parametric
+     polymorphism, algebraic data types, immutable data.
+   - Command /schemas/ allow quick integration with existing shell
+     commands written in other languages.
+   - Command /wrappers/ allow allow deeper integration by turning
+     shell commands into objects in their own right, on which
+     typeclass instances can be defined.
+   - /Files/, /Directories/, and /Paths/ are first class values.
+   - /Match/ typeclass to allow use of globs, regexes, and user-defined
+     match systems (i.e., based on =find=, =locate=, etc.)
+   - Compiles to Haskell? *NO.*
+   - Compiles to POSIX =sh=? *NO.*
+
+** Shell Design
+
+   - Ultra-interactive with real-time feedback via /Feedback/ typeclass.
+   - Super-intelligent completion via /Complete/ typeclass.
+   - Project integration (cabal, stack, git, mercurial, etc.) via /Project/ typeclass.
+   - Structured access to files via /FileSchema/ typeclass.
+   - Realtime widgets with /Widget/ typeclass.
+   - Filesystem event watching with /Notify/ typeclass.
+   - Virtual files with /File/ typeclass (maybe for exploring .gzip files, etc?).
+
+*** Technical Issues
+
+**** Does =cd= Violate Referential Transparency?
+     Yes.  But external changes to the filesystem (i.e., from another
+     program) violate it /way/ harder.  We are almost always in *IO*.
+
+     So, we will take the following approach.  All commands and
+     wrappers are basically *IO* actions.  If an *IO a* is returned to
+     the shell, then the shell executes it.
+
+     There seems to be no point in using STM, since we don't control
+     the OS.
+
+**** 
+
+** Examples
+
+   $ is the shell prompt.  => is the returned value.  =:> is the
+   interactive display. (|) = (>>=).
+
+   #+BEGIN_SRC haskell
+     $ ./
+     => /home/matt/ :: Directory
+     =:> ./Documents ./src ./Videos [...]
+
+     $ ./ | sortBy size 
+     => /home/matt/ :: Directory
+     =:> ./bigfile.bin ./smallerfile.bin [...] -- now in size order.
+
+     $ ./bigfile.bin
+     => /home/matt/bigfile.bin :: File (Schema Binary)
+     =:> <binary file> -- doesn't try to display contents.
+
+     $ (!)
+     => <function (!)> :: File t -> IO ByteString
+     =:> <documentation on (!)>
+
+     $ ! ./bigfile.bin
+     =:> ** Runtime Exception! File /home/matt/bigfile.bin
+     is not executable**
+
+     $ ./bigfile.bin | chmod { chExec = True } ChmodPreserve
+     => /home/matt/bigfile.bin :: File (Schema Binary)
+     =:> <executable binary file>
+
+     $ ! ./bigfile.bin
+     => <stdout> :: ByteString
+     =:> This was printed to stdout by running bigfile.bin
+
+     $ print
+     => <method print of class Print> :: Print a => a -> Text
+     =:> <documentation for print>
+
+     $ ./boring.json
+     => /home/matt/boring.json :: File (Schema ByteString)
+     =:> { "boring": "json object", "another": "field", "onemore": [{}, {"blah": "blah"}] }
+
+     $ ./boring.json | print
+     => <stdout> :: Text
+     =:> { "boring": "json object", "another": "field", "onemore": [{}, {"blah": "blah"}] }
+
+     $ jsonFieldNames
+     => <function jsonFieldNames> :: Json -> [JsonFieldName] -- [] is a Vector.
+     =:> <documentation for jsonFieldNames>
+
+     $ read
+     => <method read of class FileC> :: FileC f (Schema t) => f (Schema t) -> IO t
+     =:> <documentation for read>
+
+     $ ./boring.json | read | jsonFieldNames
+     =:> ** Type error!  ByteString is not a Json **
+         -- details...
+
+     $ :loadSchema Json -- is an interpreter command, since it changes the
+                        -- types of things.
+     =:> JSON Schema loaded.
+
+     $ ./boring.json 
+     => /home/matt/boring.json :: File (Schema Json) -- Type has changed
+     =:> { "boring": "json object"
+         , "another": "field"
+         , "onemore": [ {}
+                      , { "blah": "blah" }
+         		]
+         } -- note that it's pretty printed now, since we know it's JSON.
+
+     $ ./boring.json | read | jsonFieldNames
+     => ["boring", "another", "onemore"] :: [JsonFieldName]
+     =:> <documentation for type JsonFieldName, possibly>
+   #+END_SRC
