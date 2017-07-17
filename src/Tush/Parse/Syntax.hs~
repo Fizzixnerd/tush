@@ -1,0 +1,28 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+
+module Tush.Parse.Syntax where
+
+import ClassyPrelude
+
+-- Op, Identifier is defined in Lex.
+import Tush.Parse.Lex
+
+data FunctionPrototype = FunctionPrototype Identifier (Vector Identifier)
+  deriving (Eq, Ord, Show)
+
+data Expr = FloatLit Double
+          | IntLit Integer
+          | BinOp BOp Expr Expr
+          | UnOp UOp Expr
+          | VarRef Identifier
+          | Call Identifier (Vector Expr)
+          deriving (Eq, Ord, Show)
+
+
+data Statement = ExprS Expr
+               | FunctionS FunctionPrototype Expr
+               | ExternS FunctionPrototype
+               deriving (Eq, Ord, Show)

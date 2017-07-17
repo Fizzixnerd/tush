@@ -1,0 +1,92 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+
+module Tush.Parse.Expr where
+
+import ClassyPrelude
+
+import Data.Text
+import Data.Char
+import qualified Data.Vector as V
+
+import Text.Megaparsec as MP
+import Text.Megaparsec.Prim as P
+import Text.Megaparsec.Text
+import Text.Megaparsec.Expr
+
+import Tush.Parse.Lex as L
+import Tush.Parse.Syntax
+
+integerTerm :: Parser Expr
+integerTerm = IntLit <$> integer
+
+floatingTerm :: Parser Expr
+floatingTerm = FloatLit <$> floating
+
+callTerm :: Parser Expr
+callTerm = do
+  name <- identifier
+  args <- parens $ commaSep expr
+  return $ Call name args
+
+identifierTerm :: Parser Expr
+identifierTerm = VarRef <$> identifier
+
+exprStatement :: Parser Statement
+exprStatement = ExprS <$> expr
+
+statement :: Parser Statement
+statement =  do
+  s <- MP.try definition
+       <|> exprStatement
+  void terminator
+  return s
+
+definition :: Parser Statement
+definition =  MP.try externStatement
+          <|> functionStatement
+
+functionPrototype :: Parser FunctionPrototype
+functionPrototype = do
+  name <- identifier
+  args <- parens $ commaSep identifier
+  return $ FunctionPrototype name args
+
+externStatement :: Parser Statement
+externStatement = do
+  void extern 
+  fp <- functionPrototype
+  return $ ExternS fp
+
+functionStatement :: Parser Statement
+functionStatement = do
+  void def
+  fp <- functionPrototype
+  body <- expr
+  return $ FunctionS fp body
+
+-- Doesn't yet include funcalls
+term :: Parser Expr
+term =  MP.try floatingTerm
+    <|> MP.try integerTerm
+    <|> MP.try callTerm
+    <|> identifierTerm
+    <|> parens expr
+
+opTable :: [[Operator Parser Expr]]
+opTable = [[ prefix neg (\x -> UnOp Neg x) ]
+          ,[ binary mul (\x y -> BinOp Mul x y)
+           , binary L.div (\x y -> BinOp Div x y) ]
+          ,[ binary add (\x y -> BinOp Add x y)
+           , binary sub (\x y -> BinOp Sub x y) ]]
+
+binary :: Parser a -> (b -> b -> b) -> Operator Parser b
+binary p f = InfixL $ f <$ p
+
+prefix :: Parser a -> (b -> b) -> Operator Parser b
+prefix p f = Prefix $ f <$ p
+
+expr :: Parser Expr
+expr = makeExprParser term opTable <?> "expression"

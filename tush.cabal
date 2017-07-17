@@ -16,13 +16,30 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Tush.Parse
+                     , Tush.Parse.Lex
+                     , Tush.Parse.Syntax
+                     , Tush.Parse.Expr
+                     , Tush.Compile.LLVM.CodeGen
+                     , Tush.REPL
                      , Lib
-  build-depends:       base >= 4.7 && < 5,
-                       containers,
-                       mtl,
-                       megaparsec,
-                       text,
-                       vector
+  build-depends:       HUnit
+                     , QuickCheck
+                     , base-noprelude >= 4.7 && < 5
+                     , bytestring >= 0.10.8.1
+                     , classy-prelude
+                     , containers
+                     , haskeline
+                     , hspec
+                     , llvm-hs
+                     , llvm-hs-pure
+                     , megaparsec
+                     , mtl
+                     , tasty
+                     , tasty-hspec
+                     , tasty-hunit
+                     , tasty-quickcheck
+                     , text
+                     , vector
   default-language:    Haskell2010
 
 executable tush-exe
@@ -30,12 +47,7 @@ executable tush-exe
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
-                     , containers
-                     , mtl
-                     , parsec
-                     , text
                      , tush
-                     , vector
   default-language:    Haskell2010
 
 test-suite tush-test
@@ -43,12 +55,11 @@ test-suite tush-test
   hs-source-dirs:      test
   main-is:             Spec.hs
   build-depends:       base
-                     , containers
-                     , mtl
-                     , parsec
-                     , text
                      , tush
-                     , vector
+                     , megaparsec
+                     , tasty
+                     , QuickCheck
+                     , HUnit
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 

@@ -7,37 +7,215 @@ module Main Main0,1
 main main4,5
 main main5,6
 
-./src/Lib.hs,65
-module LibLib0,1
-someFunc someFunc4,5
-someFunc someFunc5,6
+./src/Lib.hs,69
+module Lib Lib3,4
+someFunc someFunc9,10
+someFunc someFunc10,11
 
-./src/Tush/Parse.hs,1033
+./src/Tush/Parse/Syntax.hs,504
+module Tush.Parse.Syntax Tush.Parse.Syntax5,6
+data FProto FProto12,13
+data FProto = FProto FProto12,13
+data Lit Lit15,16
+data Lit = ILit ILit15,16
+         | FLit FLit16,17
+data Expr Expr18,19
+data Expr = LitE LitE18,19
+          | BinOpE BinOpE19,20
+          | UnOpE UnOpE20,21
+          | VarE VarE21,22
+          | CallE CallE22,23
+data Statement Statement26,27
+data Statement = ExprS ExprS26,27
+               | FuncS FuncS27,28
+               | ExternS ExternS28,29
+
+./src/Tush/Parse/Expr.hs,670
+module Tush.Parse.Expr Tush.Parse.Expr5,6
+iLitE iLitE21,22
+iLitE iLitE22,23
+fLitE fLitE24,25
+fLitE fLitE25,26
+callE callE27,28
+callE callE28,29
+varE varE33,34
+varE varE34,35
+exprS exprS36,37
+exprS exprS37,38
+statement statement39,40
+statement statement40,41
+definitionS definitionS46,47
+definitionS definitionS47,48
+fProto fProto50,51
+fProto fProto51,52
+externS externS56,57
+externS externS57,58
+funcS funcS62,63
+funcS funcS63,64
+term term70,71
+term term71,72
+opTable opTable77,78
+opTable opTable78,79
+binary binary84,85
+binary binary85,86
+prefix prefix87,88
+prefix prefix88,89
+expr expr90,91
+expr expr91,92
+
+./src/Tush/Parse/Lex.hs,1364
+module Tush.Parse.Lex Tush.Parse.Lex5,6
+newtype Var Var17,18
+newtype Var = Var Var17,18
+data Extern Extern18,19
+data Extern = Extern Extern18,19
+data Def Def19,20
+data Def = Def Def19,20
+data BOp BOp20,21
+data BOp = Add Add20,21
+data BOp = Add | Sub Sub20,21
+data BOp = Add | Sub | Mul Mul20,21
+data BOp = Add | Sub | Mul | Div Div20,21
+data UOp UOp21,22
+data UOp = Neg Neg21,22
+data Terminator Terminator22,23
+data Terminator = Terminator Terminator22,23
+lineComment lineComment24,25
+lineComment lineComment25,26
+blockComment blockComment27,28
+blockComment blockComment28,29
+spaceConsumer spaceConsumer30,31
+spaceConsumer spaceConsumer31,32
+lexeme lexeme33,34
+lexeme lexeme34,35
+symbol symbol36,37
+symbol symbol37,38
+var var39,40
+var var40,41
+integer integer45,46
+integer integer46,47
+floating floating48,49
+floating floating49,50
+reserved reserved51,52
+reserved reserved52,53
+extern extern56,57
+extern extern57,58
+def def59,60
+def def60,61
+neg neg62,63
+neg neg63,64
+add add65,66
+add add66,67
+sub sub68,69
+sub sub69,70
+mul mul71,72
+mul mul72,73
+div div74,75
+div div75,76
+terminator terminator77,78
+terminator terminator78,79
+parens parens80,81
+parens parens81,82
+commaSep commaSep83,84
+commaSep commaSep84,85
+semiSep semiSep86,87
+semiSep semiSep87,88
+
+./src/Tush/Expr.hs,78
+module Tush.Parse.Expr Tush.Parse.Expr5,6
+expr expr21,22
+expr expr22,23
+
+./src/Tush/Parse.hs,322
 module Tush.Parse Tush.Parse18,19
-newtype RelativePath RelativePath40,41
-newtype RelativePath = RelativePath RelativePath40,41
-newtype AbsolutePath AbsolutePath41,42
-newtype AbsolutePath = AbsolutePath AbsolutePath41,42
-type PathBody PathBody42,43
-type PathComponent PathComponent43,44
-text text45,46
-text text46,47
-unquotedPathComponent unquotedPathComponent48,49
-unquotedPathComponent unquotedPathComponent49,50
-unquotedPathBody unquotedPathBody54,55
-unquotedPathBody unquotedPathBody55,56
-pathSeparatorChar pathSeparatorChar57,58
-pathSeparatorChar pathSeparatorChar58,59
-pathSeparator pathSeparator60,61
-pathSeparator pathSeparator61,62
-relativePathStarterText relativePathStarterText65,66
-relativePathStarterText relativePathStarterText66,67
-relativePathStarter relativePathStarter68,69
-relativePathStarter relativePathStarter69,70
-unquotedRelativePath unquotedRelativePath73,74
-unquotedRelativePath unquotedRelativePath74,75
-testUnquotedRealtivePath testUnquotedRealtivePath76,77
+type TushParseError TushParseError29,30
+contents contents31,32
+contents contents32,33
+toplevel toplevel38,39
+toplevel toplevel39,40
+parseStatement parseStatement41,42
+parseStatement parseStatement42,43
+parseToplevel parseToplevel44,45
+parseToplevel parseToplevel45,46
 
-./test/Spec.hs,30
-main main0,1
-main main1,2
+./src/Tush/Compile/LLVM/CodeGen.hs,1613
+module Tush.Compile.LLVM.CodeGen Tush.Compile.LLVM.CodeGen4,5
+type SymbolTable SymbolTable18,19
+type Names Names19,20
+data CodeGenState CodeGenState21,22
+data CodeGenState = CodeGenState CodeGenState21,22
+    currentBlock currentBlock22,23
+  , blocks blocks23,24
+  , symtab symtab24,25
+  , blockCount blockCount25,26
+  , count count26,27
+  , names names27,28
+data BlockState BlockState30,31
+data BlockState = BlockState BlockState30,31
+    idx idx31,32
+  , stack stack32,33
+  , term term33,34
+newtype CodeGen CodeGen36,37
+newtype CodeGen a = CodeGen CodeGen36,37
+newtype CodeGen a = CodeGen { runCodeGen runCodeGen36,37
+newtype LLVM LLVM39,40
+newtype LLVM a = LLVM LLVM39,40
+double double42,43
+double double43,44
+emptyModule emptyModule45,46
+emptyModule emptyModule46,47
+addDefn addDefn48,49
+addDefn addDefn49,50
+define define53,54
+define define54,55
+external external62,63
+external external63,64
+entry entry72,73
+entry entry73,74
+addBlock addBlock75,76
+addBlock addBlock76,77
+setBlock setBlock89,90
+setBlock setBlock90,91
+getBlock getBlock94,95
+getBlock getBlock95,96
+modifyBlock modifyBlock97,98
+modifyBlock modifyBlock98,99
+current current102,103
+current current103,104
+fresh fresh110,111
+fresh fresh111,112
+uniqueName uniqueName116,117
+uniqueName uniqueName117,118
+local local122,123
+local local123,124
+localDouble localDouble125,126
+localDouble localDouble126,127
+externf externf128,129
+externf externf129,130
+assign assign131,132
+assign assign132,133
+getVar getVar136,137
+getVar getVar137,138
+
+./src/Tush/REPL.hs,112
+module Tush.REPL Tush.REPL3,4
+process process11,12
+process process12,13
+repl repl18,19
+repl repl19,20
+
+./test/Spec.hs,89
+module Spec Spec0,1
+main main6,7
+main main7,8
+tests tests9,10
+tests tests10,11
+
+./test/Tush/Parse/LexSpec.hs,73
+module Tush.Parse.LexSpec Tush.Parse.LexSpec1,2
+lexSpec lexSpec14,15
+
+./test/Tush/Parse/ExprSpec.hs,100
+module Tush.Parse.LexSpec Tush.Parse.LexSpec2,3
+exprSpec exprSpec16,17
+exprSpec exprSpec17,18

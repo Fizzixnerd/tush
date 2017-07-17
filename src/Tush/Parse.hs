@@ -21,6 +21,29 @@ module Tush.Parse where
 import ClassyPrelude
 
 import Text.Megaparsec
+import Text.Megaparsec.Text
+
+import Tush.Parse.Syntax
+import Tush.Parse.Lex
+import Tush.Parse.Expr
+
+type TushParseError = ParseError Char Dec
+
+contents :: Parser a -> Parser a
+contents p = do
+  spaceConsumer
+  r <- p
+  eof
+  return r
+
+toplevel :: Parser (Vector Statement)
+toplevel = fromList <$> many statement  
+
+parseStatement :: Text -> Either TushParseError Statement
+parseStatement s = parse (contents statement) "<stdin>" s
+
+parseToplevel :: Text -> Either TushParseError (Vector Statement)
+parseToplevel s = parse (contents toplevel) "<stdin>" s
 
 -- import Control.Applicative as Ap
 -- import Control.Arrow
