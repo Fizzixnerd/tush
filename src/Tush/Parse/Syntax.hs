@@ -7,11 +7,16 @@ module Tush.Parse.Syntax where
 
 import ClassyPrelude
 
--- Op, Var is defined in Lex.
-import Tush.Parse.Lex
-
 data FProto = FProto Var (Vector Var)
   deriving (Eq, Ord, Show)
+
+newtype Var = Var Text deriving (Eq, Ord, Show, IsString)
+
+data Extern = Extern deriving (Eq, Show)
+data Def = Def deriving (Eq, Show)
+data BOp = Add | Sub | Mul | Div deriving (Eq, Ord, Show)
+data UOp = Neg deriving (Eq, Ord, Show)
+data Terminator = Terminator deriving (Eq, Show)
 
 data Lit = ILit Integer
          | FLit Double deriving (Eq, Ord, Show)

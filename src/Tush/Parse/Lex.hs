@@ -7,6 +7,8 @@ module Tush.Parse.Lex where
 
 import ClassyPrelude
 
+import Tush.Parse.Syntax
+
 import Data.Char
 import qualified Data.Vector as V
 
@@ -14,13 +16,6 @@ import Text.Megaparsec
 import Text.Megaparsec.Prim as P
 import Text.Megaparsec.Text
 import qualified Text.Megaparsec.Lexer as L
-
-newtype Var = Var Text deriving (Eq, Ord, Show, IsString)
-data Extern = Extern deriving (Eq, Show)
-data Def = Def deriving (Eq, Show)
-data BOp = Add | Sub | Mul | Div deriving (Eq, Ord, Show)
-data UOp = Neg deriving (Eq, Ord, Show)
-data Terminator = Terminator deriving (Eq, Show)
 
 lineComment :: Parser ()
 lineComment = L.skipLineComment "--"

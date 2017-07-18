@@ -6,15 +6,21 @@ module Tush.Compile.LLVM.CodeGen where
 
 import ClassyPrelude as CP
 
-import Data.ByteString.Short
+import Data.ByteString.Short as BSS
+import qualified Data.ByteString.Char8 as BS
 import Data.Map as M
 import qualified Data.Vector as V
+import qualified Data.Text.Encoding as TE
 
-import LLVM.AST
-import LLVM.AST.Global
-import LLVM.AST.Linkage
-import LLVM.AST.Constant
+import LLVM.AST as A
+import LLVM.AST.Global as G
+import LLVM.AST.Linkage as L
+import LLVM.AST.Constant as C
+import LLVM.AST.CallingConvention as CC
+import LLVM.AST.ParameterAttribute as PA
 import Control.Monad.State
+
+import qualified Tush.Parse.Syntax as S
 
 type SymbolTable = Map Text (Vector Operand)
 type Names = Map ShortByteString Int
@@ -46,6 +52,12 @@ double = FloatingPointType DoubleFP
 emptyModule :: ShortByteString -> Module
 emptyModule label = defaultModule { moduleName = label }
 
+emptyBlock i = BlockState { 
+    idx = i
+  , stack = mempty
+  , term = Nothing
+  }
+  
 addDefn :: Definition -> LLVM ()
 addDefn d = do
   defs <- gets moduleDefinitions
@@ -81,7 +93,7 @@ addBlock blockName = do
   let newBlock = emptyBlock ix
       (qName, supply) = uniqueName blockName ns
 
-  modify $ \s -> s { blocks = insert (Name qName) newBlock bs
+  modify $ \s -> s { blocks = M.insert (Name qName) newBlock bs
                    , blockCount = ix + 1
                    , names = supply
                    }
@@ -140,3 +152,87 @@ getVar var = do
   case M.lookup var locals of
     Just xs -> return (V.head xs)
     Nothing -> error $ "Local variable not in scope: " <> show var
+
+instr :: Instruction -> CodeGen Operand
+instr ins = do
+  n <- fresh
+  let ref = UnName n
+  blk <- current
+  let is = stack blk
+  modifyBlock (blk { stack = (ref := ins) : is })
+  return $ localDouble ref
+
+terminator :: Named Terminator -> CodeGen (Named Terminator)
+terminator trm = do
+  blk <- current
+  modifyBlock (blk { term = Just trm })
+  return trm
+
+fadd :: Operand -> Operand -> CodeGen Operand
+fadd a b = instr $ A.FAdd NoFastMathFlags a b []
+
+fsub :: Operand -> Operand -> CodeGen Operand
+fsub a b = instr $ A.FSub NoFastMathFlags a b []
+
+fmul :: Operand -> Operand -> CodeGen Operand
+fmul a b = instr $ A.FMul NoFastMathFlags a b []
+
+fdiv :: Operand -> Operand -> CodeGen Operand
+fdiv a b = instr $ A.FDiv NoFastMathFlags a b []
+
+br :: Name -> CodeGen (Named Terminator)
+br val = terminator $ Do $ Br val []
+
+cbr :: Operand -> Name -> Name -> CodeGen (Named Terminator)
+cbr cond tr fl = terminator $ Do $ CondBr cond tr fl []
+
+ret :: Operand -> CodeGen (Named Terminator)
+ret val = terminator $ Do $ Ret (Just val) []
+
+toArg :: Operand -> (Operand, [PA.ParameterAttribute])
+toArg arg = (arg, [])
+
+call :: Operand -> [Operand] -> CodeGen Operand
+call fn args = instr $ Call Nothing CC.C [] (Right fn) (toArg <$> args) [] []
+
+alloca :: Type -> CodeGen Operand
+alloca t = instr $ Alloca t Nothing 0 []
+
+store :: Operand -> Operand -> CodeGen Operand
+store ptr val = instr $ Store False ptr val Nothing 0 []
+
+load :: Operand -> CodeGen Operand
+load ptr = instr $ Load False ptr Nothing 0 []
+
+codeGenTop :: S.Statement -> LLVM ()
+codeGenTop (S.FuncS (S.FProto name args) body) = do
+  define double name fnargs bls
+  where
+    fnargs = toSig <$> args
+    bls = createBlocks $ execCodeGen $ do
+      entry <- addBlock entryBlockName
+      setBlock entry
+      forM args $ \a -> do
+        var <- alloca double
+        store var $ localDouble $ Name a
+        assign a var
+      cgen body >>= ret
+
+codeGenTop (S.ExternS (S.FProto name args)) = do
+  external double name fnargs
+  where
+    fnargs = toSig <$> args
+
+codeGenTop (S.ExprS e) = do
+  define double "main" [] blks
+  where
+    blks = createBlocks $ execCodeGen $ do
+      entry <- addBlock entryBlockName
+      setBlock entry
+      cgen e >>= ret
+
+textToSBS :: Text -> ShortByteString
+textToSBS = fromString . BS.unpack . TE.encodeUtf8
+
+toSig :: S.Var -> (Type, Name)
+toSig (S.Var x) = (double, Name $ textToSBS x)

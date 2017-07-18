@@ -12,23 +12,38 @@ module Lib Lib3,4
 someFunc someFunc9,10
 someFunc someFunc10,11
 
-./src/Tush/Parse/Syntax.hs,504
+./src/Tush/Parse/Syntax.hs,948
 module Tush.Parse.Syntax Tush.Parse.Syntax5,6
-data FProto FProto12,13
-data FProto = FProto FProto12,13
-data Lit Lit15,16
-data Lit = ILit ILit15,16
-         | FLit FLit16,17
-data Expr Expr18,19
-data Expr = LitE LitE18,19
-          | BinOpE BinOpE19,20
-          | UnOpE UnOpE20,21
-          | VarE VarE21,22
-          | CallE CallE22,23
-data Statement Statement26,27
-data Statement = ExprS ExprS26,27
-               | FuncS FuncS27,28
-               | ExternS ExternS28,29
+data FProto FProto9,10
+data FProto = FProto FProto9,10
+newtype Var Var12,13
+newtype Var = Var Var12,13
+data Extern Extern14,15
+data Extern = Extern Extern14,15
+data Def Def15,16
+data Def = Def Def15,16
+data BOp BOp16,17
+data BOp = Add Add16,17
+data BOp = Add | Sub Sub16,17
+data BOp = Add | Sub | Mul Mul16,17
+data BOp = Add | Sub | Mul | Div Div16,17
+data UOp UOp17,18
+data UOp = Neg Neg17,18
+data Terminator Terminator18,19
+data Terminator = Terminator Terminator18,19
+data Lit Lit20,21
+data Lit = ILit ILit20,21
+         | FLit FLit21,22
+data Expr Expr23,24
+data Expr = LitE LitE23,24
+          | BinOpE BinOpE24,25
+          | UnOpE UnOpE25,26
+          | VarE VarE26,27
+          | CallE CallE27,28
+data Statement Statement31,32
+data Statement = ExprS ExprS31,32
+               | FuncS FuncS32,33
+               | ExternS ExternS33,34
 
 ./src/Tush/Parse/Expr.hs,670
 module Tush.Parse.Expr Tush.Parse.Expr5,6
@@ -63,63 +78,48 @@ prefix prefix88,89
 expr expr90,91
 expr expr91,92
 
-./src/Tush/Parse/Lex.hs,1364
+./src/Tush/Parse/Lex.hs,918
 module Tush.Parse.Lex Tush.Parse.Lex5,6
-newtype Var Var17,18
-newtype Var = Var Var17,18
-data Extern Extern18,19
-data Extern = Extern Extern18,19
-data Def Def19,20
-data Def = Def Def19,20
-data BOp BOp20,21
-data BOp = Add Add20,21
-data BOp = Add | Sub Sub20,21
-data BOp = Add | Sub | Mul Mul20,21
-data BOp = Add | Sub | Mul | Div Div20,21
-data UOp UOp21,22
-data UOp = Neg Neg21,22
-data Terminator Terminator22,23
-data Terminator = Terminator Terminator22,23
-lineComment lineComment24,25
-lineComment lineComment25,26
-blockComment blockComment27,28
-blockComment blockComment28,29
-spaceConsumer spaceConsumer30,31
-spaceConsumer spaceConsumer31,32
-lexeme lexeme33,34
-lexeme lexeme34,35
-symbol symbol36,37
-symbol symbol37,38
-var var39,40
-var var40,41
-integer integer45,46
-integer integer46,47
-floating floating48,49
-floating floating49,50
-reserved reserved51,52
-reserved reserved52,53
-extern extern56,57
-extern extern57,58
-def def59,60
-def def60,61
-neg neg62,63
-neg neg63,64
-add add65,66
-add add66,67
-sub sub68,69
-sub sub69,70
-mul mul71,72
-mul mul72,73
-div div74,75
-div div75,76
-terminator terminator77,78
-terminator terminator78,79
-parens parens80,81
-parens parens81,82
-commaSep commaSep83,84
-commaSep commaSep84,85
-semiSep semiSep86,87
-semiSep semiSep87,88
+lineComment lineComment19,20
+lineComment lineComment20,21
+blockComment blockComment22,23
+blockComment blockComment23,24
+spaceConsumer spaceConsumer25,26
+spaceConsumer spaceConsumer26,27
+lexeme lexeme28,29
+lexeme lexeme29,30
+symbol symbol31,32
+symbol symbol32,33
+var var34,35
+var var35,36
+integer integer40,41
+integer integer41,42
+floating floating43,44
+floating floating44,45
+reserved reserved46,47
+reserved reserved47,48
+extern extern51,52
+extern extern52,53
+def def54,55
+def def55,56
+neg neg57,58
+neg neg58,59
+add add60,61
+add add61,62
+sub sub63,64
+sub sub64,65
+mul mul66,67
+mul mul67,68
+div div69,70
+div div70,71
+terminator terminator72,73
+terminator terminator73,74
+parens parens75,76
+parens parens76,77
+commaSep commaSep78,79
+commaSep commaSep79,80
+semiSep semiSep81,82
+semiSep semiSep82,83
 
 ./src/Tush/Expr.hs,78
 module Tush.Parse.Expr Tush.Parse.Expr5,6
@@ -138,64 +138,99 @@ parseStatement parseStatement42,43
 parseToplevel parseToplevel44,45
 parseToplevel parseToplevel45,46
 
-./src/Tush/Compile/LLVM/CodeGen.hs,1613
+./src/Tush/Compile/LLVM/CodeGen.hs,2376
 module Tush.Compile.LLVM.CodeGen Tush.Compile.LLVM.CodeGen4,5
-type SymbolTable SymbolTable18,19
-type Names Names19,20
-data CodeGenState CodeGenState21,22
-data CodeGenState = CodeGenState CodeGenState21,22
-    currentBlock currentBlock22,23
-  , blocks blocks23,24
-  , symtab symtab24,25
-  , blockCount blockCount25,26
-  , count count26,27
-  , names names27,28
-data BlockState BlockState30,31
-data BlockState = BlockState BlockState30,31
-    idx idx31,32
-  , stack stack32,33
-  , term term33,34
-newtype CodeGen CodeGen36,37
-newtype CodeGen a = CodeGen CodeGen36,37
-newtype CodeGen a = CodeGen { runCodeGen runCodeGen36,37
-newtype LLVM LLVM39,40
-newtype LLVM a = LLVM LLVM39,40
-double double42,43
-double double43,44
-emptyModule emptyModule45,46
-emptyModule emptyModule46,47
-addDefn addDefn48,49
-addDefn addDefn49,50
-define define53,54
-define define54,55
-external external62,63
-external external63,64
-entry entry72,73
-entry entry73,74
-addBlock addBlock75,76
-addBlock addBlock76,77
-setBlock setBlock89,90
-setBlock setBlock90,91
-getBlock getBlock94,95
-getBlock getBlock95,96
-modifyBlock modifyBlock97,98
-modifyBlock modifyBlock98,99
-current current102,103
-current current103,104
-fresh fresh110,111
-fresh fresh111,112
-uniqueName uniqueName116,117
-uniqueName uniqueName117,118
-local local122,123
-local local123,124
-localDouble localDouble125,126
-localDouble localDouble126,127
-externf externf128,129
-externf externf129,130
-assign assign131,132
-assign assign132,133
-getVar getVar136,137
-getVar getVar137,138
+type SymbolTable SymbolTable24,25
+type Names Names25,26
+data CodeGenState CodeGenState27,28
+data CodeGenState = CodeGenState CodeGenState27,28
+    currentBlock currentBlock28,29
+  , blocks blocks29,30
+  , symtab symtab30,31
+  , blockCount blockCount31,32
+  , count count32,33
+  , names names33,34
+data BlockState BlockState36,37
+data BlockState = BlockState BlockState36,37
+    idx idx37,38
+  , stack stack38,39
+  , term term39,40
+newtype CodeGen CodeGen42,43
+newtype CodeGen a = CodeGen CodeGen42,43
+newtype CodeGen a = CodeGen { runCodeGen runCodeGen42,43
+newtype LLVM LLVM45,46
+newtype LLVM a = LLVM LLVM45,46
+double double48,49
+double double49,50
+emptyModule emptyModule51,52
+emptyModule emptyModule52,53
+emptyBlock emptyBlock54,55
+addDefn addDefn60,61
+addDefn addDefn61,62
+define define65,66
+define define66,67
+external external74,75
+external external75,76
+entry entry84,85
+entry entry85,86
+addBlock addBlock87,88
+addBlock addBlock88,89
+setBlock setBlock101,102
+setBlock setBlock102,103
+getBlock getBlock106,107
+getBlock getBlock107,108
+modifyBlock modifyBlock109,110
+modifyBlock modifyBlock110,111
+current current114,115
+current current115,116
+fresh fresh122,123
+fresh fresh123,124
+uniqueName uniqueName128,129
+uniqueName uniqueName129,130
+local local134,135
+local local135,136
+localDouble localDouble137,138
+localDouble localDouble138,139
+externf externf140,141
+externf externf141,142
+assign assign143,144
+assign assign144,145
+getVar getVar148,149
+getVar getVar149,150
+instr instr155,156
+instr instr156,157
+terminator terminator164,165
+terminator terminator165,166
+fadd fadd170,171
+fadd fadd171,172
+fsub fsub173,174
+fsub fsub174,175
+fmul fmul176,177
+fmul fmul177,178
+fdiv fdiv179,180
+fdiv fdiv180,181
+br br182,183
+br br183,184
+cbr cbr185,186
+cbr cbr186,187
+ret ret188,189
+ret ret189,190
+toArg toArg191,192
+toArg toArg192,193
+call call194,195
+call call195,196
+alloca alloca197,198
+alloca alloca198,199
+store store200,201
+store store201,202
+load load203,204
+load load204,205
+codeGenTop codeGenTop206,207
+codeGenTop codeGenTop207,208
+textToSBS textToSBS233,234
+textToSBS textToSBS234,235
+toSig toSig236,237
+toSig toSig237,238
 
 ./src/Tush/REPL.hs,112
 module Tush.REPL Tush.REPL3,4
