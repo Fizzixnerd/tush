@@ -22,6 +22,7 @@
      match systems (i.e., based on =find=, =locate=, etc.)
    - Compiles to Haskell? *NO.*
    - Compiles to POSIX =sh=? *NO.*
+   - Compiles to LLVM? *YES.*
 
 ** Shell Design
 
@@ -122,4 +123,8 @@
      $ ./boring.json | read | jsonFieldNames
      => ["boring", "another", "onemore"] :: [JsonFieldName]
      =:> <documentation for type JsonFieldName, possibly>
+
+     $ !/chmod
+     => /bin/chmod :: File (Schema Binary)
+     =:> <executable binary file>
    #+END_SRC

@@ -11,6 +11,8 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Map as M
 import qualified Data.Vector as V
 import qualified Data.Text.Encoding as TE
+import Control.Monad.State
+import Control.Monad.Except
 
 import LLVM.AST as A
 import LLVM.AST.Global as G
@@ -18,7 +20,10 @@ import LLVM.AST.Linkage as L
 import LLVM.AST.Constant as C
 import LLVM.AST.CallingConvention as CC
 import LLVM.AST.ParameterAttribute as PA
-import Control.Monad.State
+import LLVM.AST.Float as F
+import LLVM.Context
+import LLVM.Module
+import qualified LLVM.AST.FloatingPointPredicate as FPP
 
 import qualified Tush.Parse.Syntax as S
 
@@ -43,13 +48,30 @@ data BlockState = BlockState {
 newtype CodeGen a = CodeGen { runCodeGen :: State CodeGenState a }
   deriving (Functor, Applicative, Monad, MonadState CodeGenState)
 
-newtype LLVM a = LLVM (State Module a)
-  deriving (Functor, Applicative, Monad, MonadState Module)
+newtype LLVM a = LLVM (State A.Module a)
+  deriving (Functor, Applicative, Monad, MonadState A.Module)
+
+sortBlocks :: [(Name, BlockState)] -> [(Name, BlockState)]
+sortBlocks = sortBy (compare `on` (idx . snd))
+
+createBlocks :: CodeGenState -> [BasicBlock]
+createBlocks m = fmap (uncurry makeBlock) $ sortBlocks $ M.toList $ blocks m
 
 double :: Type
 double = FloatingPointType DoubleFP
 
-emptyModule :: ShortByteString -> Module
+runLLVM :: A.Module -> LLVM a -> A.Module
+runLLVM mod (LLVM m) = execState m mod
+
+emptyCodeGen = CodeGenState (Name entryBlockName) mempty mempty 1 0 mempty
+
+execCodeGen :: CodeGen a -> CodeGenState
+execCodeGen m = execState (runCodeGen m) emptyCodeGen
+
+entryBlockName :: ShortByteString
+entryBlockName = "entry"
+
+emptyModule :: ShortByteString -> A.Module
 emptyModule label = defaultModule { moduleName = label }
 
 emptyBlock i = BlockState { 
@@ -57,6 +79,12 @@ emptyBlock i = BlockState {
   , stack = mempty
   , term = Nothing
   }
+
+makeBlock :: Name -> BlockState -> BasicBlock
+makeBlock l (BlockState _ s t) = BasicBlock l (reverse s) (makeTerm t)
+  where
+    makeTerm (Just x) = x
+    makeTerm (Nothing) = error $ "Block has no terminator: " ++ show l
   
 addDefn :: Definition -> LLVM ()
 addDefn d = do
@@ -138,6 +166,12 @@ local t = LocalReference t
 localDouble :: Name -> Operand
 localDouble = local double
 
+constant :: C.Constant -> Operand
+constant = ConstantOperand
+
+uitofp :: Type -> Operand -> CodeGen Operand
+uitofp t a = instr $ A.UIToFP a t []
+
 externf :: Type -> Name -> Operand
 externf t = ConstantOperand . GlobalReference t
 
@@ -180,6 +214,14 @@ fmul a b = instr $ A.FMul NoFastMathFlags a b []
 fdiv :: Operand -> Operand -> CodeGen Operand
 fdiv a b = instr $ A.FDiv NoFastMathFlags a b []
 
+fcmp :: FPP.FloatingPointPredicate -> Operand -> Operand -> CodeGen Operand
+fcmp cond a b = instr $ A.FCmp cond a b [] 
+
+lt :: Operand -> Operand -> CodeGen Operand
+lt a b = do
+  test <- fcmp FPP.ULT a b
+  uitofp double test
+
 br :: Name -> CodeGen (Named Terminator)
 br val = terminator $ Do $ Br val []
 
@@ -205,24 +247,22 @@ load :: Operand -> CodeGen Operand
 load ptr = instr $ Load False ptr Nothing 0 []
 
 codeGenTop :: S.Statement -> LLVM ()
-codeGenTop (S.FuncS (S.FProto name args) body) = do
-  define double name fnargs bls
+codeGenTop (S.FuncS (S.FProto (S.Var name) args) body) = do
+  define double (textToSBS name) (V.toList fnargs) bls
   where
     fnargs = toSig <$> args
     bls = createBlocks $ execCodeGen $ do
       entry <- addBlock entryBlockName
       setBlock entry
-      forM args $ \a -> do
+      forM args $ \(S.Var a) -> do
         var <- alloca double
-        store var $ localDouble $ Name a
+        store var $ localDouble $ (snd $ toSig (S.Var a))
         assign a var
       cgen body >>= ret
-
-codeGenTop (S.ExternS (S.FProto name args)) = do
-  external double name fnargs
+codeGenTop (S.ExternS (S.FProto (S.Var name) args)) = do
+  external double (textToSBS name) (V.toList fnargs)
   where
     fnargs = toSig <$> args
-
 codeGenTop (S.ExprS e) = do
   define double "main" [] blks
   where
@@ -231,8 +271,48 @@ codeGenTop (S.ExprS e) = do
       setBlock entry
       cgen e >>= ret
 
+varToName :: S.Var -> Name
+varToName (S.Var x) = Name $ textToSBS x
+
 textToSBS :: Text -> ShortByteString
 textToSBS = fromString . BS.unpack . TE.encodeUtf8
 
 toSig :: S.Var -> (Type, Name)
-toSig (S.Var x) = (double, Name $ textToSBS x)
+toSig x = (double, varToName x)
+
+binops :: Map S.BOp (Operand -> Operand -> CodeGen Operand)
+binops = M.fromList [
+    (S.Add, fadd)
+  , (S.Sub, fsub)
+  , (S.Mul, fmul)
+  , (S.Div, fdiv)
+  , (S.Lt, lt  )
+  ]
+
+cgen :: S.Expr -> CodeGen Operand
+cgen (S.LitE  (S.FLit n)) = return $ constant $ C.Float (F.Double n)
+cgen (S.LitE  (S.ILit n)) = return $ constant $ C.Float (F.Double (fromIntegral n))
+cgen (S.VarE  (S.Var  v)) = getVar v >>= load
+cgen (S.CallE fn args)    = do
+  largs <- mapM cgen args
+  call (externf double $ varToName fn) (V.toList largs)
+cgen (S.BinOpE op a b) = do
+  case M.lookup op binops of
+    Just f -> do
+      ca <- cgen a
+      cb <- cgen b
+      f ca cb
+    Nothing -> error "No such operator."
+
+liftError :: ExceptT String IO a -> IO a
+liftError = runExceptT >=> either fail return
+
+codeGen :: A.Module -> Vector S.Statement -> IO A.Module
+codeGen mod fns = withContext $ \context ->
+  withModuleFromAST context newast $ \m -> do
+    llstr <- moduleLLVMAssembly m
+    BS.putStrLn llstr
+    return newast
+  where
+    modn = mapM codeGenTop fns
+    newast = runLLVM mod modn

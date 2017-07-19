@@ -14,7 +14,7 @@ newtype Var = Var Text deriving (Eq, Ord, Show, IsString)
 
 data Extern = Extern deriving (Eq, Show)
 data Def = Def deriving (Eq, Show)
-data BOp = Add | Sub | Mul | Div deriving (Eq, Ord, Show)
+data BOp = Add | Sub | Mul | Div | Lt deriving (Eq, Ord, Show)
 data UOp = Neg deriving (Eq, Ord, Show)
 data Terminator = Terminator deriving (Eq, Show)
 
