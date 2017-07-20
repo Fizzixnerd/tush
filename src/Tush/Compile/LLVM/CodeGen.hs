@@ -27,6 +27,8 @@ import qualified LLVM.AST.FloatingPointPredicate as FPP
 
 import qualified Tush.Parse.Syntax as S
 
+--- Type Definitions
+
 type SymbolTable = Map Text (Vector Operand)
 type Names = Map ShortByteString Int
 
@@ -51,28 +53,14 @@ newtype CodeGen a = CodeGen { runCodeGen :: State CodeGenState a }
 newtype LLVM a = LLVM (State A.Module a)
   deriving (Functor, Applicative, Monad, MonadState A.Module)
 
-sortBlocks :: [(Name, BlockState)] -> [(Name, BlockState)]
-sortBlocks = sortBy (compare `on` (idx . snd))
+data BlockHasNoTerminatorException = BlockHasNoTerminatorException Name deriving (Show, Typeable)
 
-createBlocks :: CodeGenState -> [BasicBlock]
-createBlocks m = fmap (uncurry makeBlock) $ sortBlocks $ M.toList $ blocks m
+instance Exception BlockHasNoTerminatorException
 
-double :: Type
-double = FloatingPointType DoubleFP
-
-runLLVM :: A.Module -> LLVM a -> A.Module
-runLLVM mod (LLVM m) = execState m mod
-
-emptyCodeGen = CodeGenState (Name entryBlockName) mempty mempty 1 0 mempty
-
-execCodeGen :: CodeGen a -> CodeGenState
-execCodeGen m = execState (runCodeGen m) emptyCodeGen
+--- Block Operations
 
 entryBlockName :: ShortByteString
 entryBlockName = "entry"
-
-emptyModule :: ShortByteString -> A.Module
-emptyModule label = defaultModule { moduleName = label }
 
 emptyBlock i = BlockState { 
     idx = i
@@ -80,39 +68,43 @@ emptyBlock i = BlockState {
   , term = Nothing
   }
 
+sortBlocks :: [(Name, BlockState)] -> [(Name, BlockState)]
+sortBlocks = sortBy (compare `on` (idx . snd))
+
+createBlocks :: CodeGenState -> [BasicBlock]
+createBlocks m = fmap (uncurry makeBlock) $ sortBlocks $ M.toList $ blocks m
+
 makeBlock :: Name -> BlockState -> BasicBlock
 makeBlock l (BlockState _ s t) = BasicBlock l (reverse s) (makeTerm t)
   where
     makeTerm (Just x) = x
     makeTerm (Nothing) = error $ "Block has no terminator: " ++ show l
-  
-addDefn :: Definition -> LLVM ()
-addDefn d = do
-  defs <- gets moduleDefinitions
-  modify $ \s -> s { moduleDefinitions = defs <> [d] }
 
-define :: Type -> ShortByteString -> [(Type, Name)] -> [BasicBlock] -> LLVM ()
-define retType label argTypes body = addDefn $ 
-  GlobalDefinition $ functionDefaults {
-    name = Name label
-  , parameters = ([Parameter ty nm [] | (ty, nm) <- argTypes], False)
-  , returnType = retType
-  , basicBlocks = body
-  }
+--- LLVM Type Definitions
 
-external :: Type -> ShortByteString -> [(Type, Name)] -> LLVM ()
-external retType label argTypes = addDefn $
-  GlobalDefinition $ functionDefaults {
-    name = Name label
-  , linkage = External
-  , parameters = ([Parameter ty nm [] | (ty, nm) <- argTypes], False)
-  , returnType = retType
-  , basicBlocks = []
-  }
+double :: Type
+double = FloatingPointType DoubleFP
+
+--- CodeGen Operations
+
+emptyCodeGen :: CodeGenState
+emptyCodeGen = CodeGenState (Name entryBlockName) mempty mempty 1 0 mempty
+
+execCodeGen :: CodeGen a -> CodeGenState
+execCodeGen m = execState (runCodeGen m) emptyCodeGen
+
+--- Block Operations
+
+runLLVM :: A.Module -> LLVM a -> A.Module
+runLLVM mod (LLVM m) = execState m mod
+
+emptyModule :: ShortByteString -> A.Module
+emptyModule label = defaultModule { moduleName = label }
 
 entry :: CodeGen Name
 entry = gets currentBlock
 
+--- Take a base name and add a block with returned qualified name.
 addBlock :: ShortByteString -> CodeGen Name
 addBlock blockName = do
   bs <- gets blocks
@@ -120,7 +112,6 @@ addBlock blockName = do
   ns <- gets names
   let newBlock = emptyBlock ix
       (qName, supply) = uniqueName blockName ns
-
   modify $ \s -> s { blocks = M.insert (Name qName) newBlock bs
                    , blockCount = ix + 1
                    , names = supply
@@ -153,6 +144,34 @@ fresh = do
   i <- gets count
   modify $ \s -> s { count = i + 1 }
   return $ i + 1
+
+--- LLVM Actions
+
+addDefn :: Definition -> LLVM ()
+addDefn d = do
+  defs <- gets moduleDefinitions
+  modify $ \s -> s { moduleDefinitions = defs <> [d] }
+
+define :: Type -> ShortByteString -> [(Type, Name)] -> [BasicBlock] -> LLVM ()
+define retType label argTypes body = addDefn $ 
+  GlobalDefinition $ functionDefaults {
+    name = Name label
+  , parameters = ([Parameter ty nm [] | (ty, nm) <- argTypes], False)
+  , returnType = retType
+  , basicBlocks = body
+  }
+
+external :: Type -> ShortByteString -> [(Type, Name)] -> LLVM ()
+external retType label argTypes = addDefn $
+  GlobalDefinition $ functionDefaults {
+    name = Name label
+  , linkage = External
+  , parameters = ([Parameter ty nm [] | (ty, nm) <- argTypes], False)
+  , returnType = retType
+  , basicBlocks = []
+  }
+
+--- Operand Operations
 
 uniqueName :: ShortByteString -> Names -> (ShortByteString, Names)
 uniqueName n ns =
@@ -202,6 +221,8 @@ terminator trm = do
   modifyBlock (blk { term = Just trm })
   return trm
 
+--- Floating-point Operations
+
 fadd :: Operand -> Operand -> CodeGen Operand
 fadd a b = instr $ A.FAdd NoFastMathFlags a b []
 
@@ -217,10 +238,12 @@ fdiv a b = instr $ A.FDiv NoFastMathFlags a b []
 fcmp :: FPP.FloatingPointPredicate -> Operand -> Operand -> CodeGen Operand
 fcmp cond a b = instr $ A.FCmp cond a b [] 
 
-lt :: Operand -> Operand -> CodeGen Operand
-lt a b = do
+flt :: Operand -> Operand -> CodeGen Operand
+flt a b = do
   test <- fcmp FPP.ULT a b
   uitofp double test
+
+--- Control Operations (Terminators)
 
 br :: Name -> CodeGen (Named Terminator)
 br val = terminator $ Do $ Br val []
@@ -237,6 +260,8 @@ toArg arg = (arg, [])
 call :: Operand -> [Operand] -> CodeGen Operand
 call fn args = instr $ Call Nothing CC.C [] (Right fn) (toArg <$> args) [] []
 
+--- Memory Operations
+
 alloca :: Type -> CodeGen Operand
 alloca t = instr $ Alloca t Nothing 0 []
 
@@ -245,6 +270,8 @@ store ptr val = instr $ Store False ptr val Nothing 0 []
 
 load :: Operand -> CodeGen Operand
 load ptr = instr $ Load False ptr Nothing 0 []
+
+--- Compilation
 
 codeGenTop :: S.Statement -> LLVM ()
 codeGenTop (S.FuncS (S.FProto (S.Var name) args) body) = do
@@ -286,7 +313,7 @@ binops = M.fromList [
   , (S.Sub, fsub)
   , (S.Mul, fmul)
   , (S.Div, fdiv)
-  , (S.Lt, lt  )
+  , (S.Lt , flt )
   ]
 
 cgen :: S.Expr -> CodeGen Operand

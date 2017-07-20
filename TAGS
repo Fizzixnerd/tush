@@ -139,130 +139,133 @@ parseStatement parseStatement42,43
 parseToplevel parseToplevel44,45
 parseToplevel parseToplevel45,46
 
-./src/Tush/Compile/LLVM/CodeGen.hs,3199
+./src/Tush/Compile/LLVM/CodeGen.hs,3424
 module Tush.Compile.LLVM.CodeGen Tush.Compile.LLVM.CodeGen4,5
-type SymbolTable SymbolTable29,30
-type Names Names30,31
-data CodeGenState CodeGenState32,33
-data CodeGenState = CodeGenState CodeGenState32,33
-    currentBlock currentBlock33,34
-  , blocks blocks34,35
-  , symtab symtab35,36
-  , blockCount blockCount36,37
-  , count count37,38
-  , names names38,39
-data BlockState BlockState41,42
-data BlockState = BlockState BlockState41,42
-    idx idx42,43
-  , stack stack43,44
-  , term term44,45
-newtype CodeGen CodeGen47,48
-newtype CodeGen a = CodeGen CodeGen47,48
-newtype CodeGen a = CodeGen { runCodeGen runCodeGen47,48
-newtype LLVM LLVM50,51
-newtype LLVM a = LLVM LLVM50,51
-sortBlocks sortBlocks53,54
-sortBlocks sortBlocks54,55
-createBlocks createBlocks56,57
-createBlocks createBlocks57,58
-double double59,60
-double double60,61
-runLLVM runLLVM62,63
-runLLVM runLLVM63,64
-emptyCodeGen emptyCodeGen65,66
-execCodeGen execCodeGen67,68
-execCodeGen execCodeGen68,69
-entryBlockName entryBlockName70,71
-entryBlockName entryBlockName71,72
-emptyModule emptyModule73,74
-emptyModule emptyModule74,75
-emptyBlock emptyBlock76,77
-makeBlock makeBlock82,83
-makeBlock makeBlock83,84
-addDefn addDefn88,89
-addDefn addDefn89,90
-define define93,94
-define define94,95
-external external102,103
-external external103,104
-entry entry112,113
-entry entry113,114
-addBlock addBlock115,116
-addBlock addBlock116,117
-setBlock setBlock129,130
-setBlock setBlock130,131
-getBlock getBlock134,135
-getBlock getBlock135,136
-modifyBlock modifyBlock137,138
-modifyBlock modifyBlock138,139
-current current142,143
-current current143,144
-fresh fresh150,151
-fresh fresh151,152
-uniqueName uniqueName156,157
-uniqueName uniqueName157,158
-local local162,163
-local local163,164
-localDouble localDouble165,166
-localDouble localDouble166,167
-constant constant168,169
-constant constant169,170
-uitofp uitofp171,172
-uitofp uitofp172,173
-externf externf174,175
-externf externf175,176
-assign assign177,178
-assign assign178,179
-getVar getVar182,183
-getVar getVar183,184
-instr instr189,190
-instr instr190,191
-terminator terminator198,199
-terminator terminator199,200
-fadd fadd204,205
-fadd fadd205,206
-fsub fsub207,208
-fsub fsub208,209
-fmul fmul210,211
-fmul fmul211,212
-fdiv fdiv213,214
-fdiv fdiv214,215
-fcmp fcmp216,217
-fcmp fcmp217,218
-lt lt219,220
-lt lt220,221
-br br224,225
-br br225,226
-cbr cbr227,228
-cbr cbr228,229
-ret ret230,231
-ret ret231,232
-toArg toArg233,234
-toArg toArg234,235
-call call236,237
-call call237,238
-alloca alloca239,240
-alloca alloca240,241
-store store242,243
-store store243,244
-load load245,246
-load load246,247
-codeGenTop codeGenTop248,249
-codeGenTop codeGenTop249,250
-varToName varToName273,274
-varToName varToName274,275
-textToSBS textToSBS276,277
-textToSBS textToSBS277,278
-toSig toSig279,280
-toSig toSig280,281
-binops binops282,283
-binops binops283,284
-cgen cgen291,292
-cgen cgen292,293
-liftError liftError306,307
-liftError liftError307,308
-codeGen codeGen309,310
-codeGen codeGen310,311
+type SymbolTable SymbolTable31,32
+type Names Names32,33
+data CodeGenState CodeGenState34,35
+data CodeGenState = CodeGenState CodeGenState34,35
+    currentBlock currentBlock35,36
+  , blocks blocks36,37
+  , symtab symtab37,38
+  , blockCount blockCount38,39
+  , count count39,40
+  , names names40,41
+data BlockState BlockState43,44
+data BlockState = BlockState BlockState43,44
+    idx idx44,45
+  , stack stack45,46
+  , term term46,47
+newtype CodeGen CodeGen49,50
+newtype CodeGen a = CodeGen CodeGen49,50
+newtype CodeGen a = CodeGen { runCodeGen runCodeGen49,50
+newtype LLVM LLVM52,53
+newtype LLVM a = LLVM LLVM52,53
+data BlockHasNoTerminatorException BlockHasNoTerminatorException55,56
+data BlockHasNoTerminatorException = BlockHasNoTerminatorException BlockHasNoTerminatorException55,56
+entryBlockName entryBlockName61,62
+entryBlockName entryBlockName62,63
+emptyBlock emptyBlock64,65
+sortBlocks sortBlocks70,71
+sortBlocks sortBlocks71,72
+createBlocks createBlocks73,74
+createBlocks createBlocks74,75
+makeBlock makeBlock76,77
+makeBlock makeBlock77,78
+double double84,85
+double double85,86
+emptyCodeGen emptyCodeGen89,90
+emptyCodeGen emptyCodeGen90,91
+execCodeGen execCodeGen92,93
+execCodeGen execCodeGen93,94
+runLLVM runLLVM97,98
+runLLVM runLLVM98,99
+emptyModule emptyModule100,101
+emptyModule emptyModule101,102
+entry entry103,104
+entry entry104,105
+addBlock addBlock107,108
+addBlock addBlock108,109
+setBlock setBlock120,121
+setBlock setBlock121,122
+getBlock getBlock125,126
+getBlock getBlock126,127
+modifyBlock modifyBlock128,129
+modifyBlock modifyBlock129,130
+current current133,134
+current current134,135
+fresh fresh141,142
+fresh fresh142,143
+addDefn addDefn149,150
+addDefn addDefn150,151
+define define154,155
+define define155,156
+external external163,164
+external external164,165
+uniqueName uniqueName175,176
+uniqueName uniqueName176,177
+local local181,182
+local local182,183
+localDouble localDouble184,185
+localDouble localDouble185,186
+constant constant187,188
+constant constant188,189
+uitofp uitofp190,191
+uitofp uitofp191,192
+externf externf193,194
+externf externf194,195
+assign assign196,197
+assign assign197,198
+getVar getVar201,202
+getVar getVar202,203
+instr instr208,209
+instr instr209,210
+terminator terminator217,218
+terminator terminator218,219
+fadd fadd225,226
+fadd fadd226,227
+fsub fsub228,229
+fsub fsub229,230
+fmul fmul231,232
+fmul fmul232,233
+fdiv fdiv234,235
+fdiv fdiv235,236
+fcmp fcmp237,238
+fcmp fcmp238,239
+flt flt240,241
+flt flt241,242
+br br247,248
+br br248,249
+cbr cbr250,251
+cbr cbr251,252
+ret ret253,254
+ret ret254,255
+toArg toArg256,257
+toArg toArg257,258
+call call259,260
+call call260,261
+alloca alloca264,265
+alloca alloca265,266
+store store267,268
+store store268,269
+load load270,271
+load load271,272
+codeGenTop codeGenTop275,276
+codeGenTop codeGenTop276,277
+varToName varToName300,301
+varToName varToName301,302
+textToSBS textToSBS303,304
+textToSBS textToSBS304,305
+toSig toSig306,307
+toSig toSig307,308
+binops binops309,310
+binops binops310,311
+cgen cgen318,319
+cgen cgen319,320
+liftError liftError333,334
+liftError liftError334,335
+codeGen codeGen336,337
+codeGen codeGen337,338
 
 ./src/Tush/REPL.hs,170
 module Tush.REPL Tush.REPL3,4

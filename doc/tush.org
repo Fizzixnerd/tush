@@ -124,7 +124,11 @@
      => ["boring", "another", "onemore"] :: [JsonFieldName]
      =:> <documentation for type JsonFieldName, possibly>
 
-     $ !/chmod
+     $ !/chmod -- PATH file literal
      => /bin/chmod :: File (Schema Binary)
+     =:> <executable binary file>
+
+     $ //bin/chmod -- Absolute literal
+     => /bin/chmod :: File
      =:> <executable binary file>
    #+END_SRC
