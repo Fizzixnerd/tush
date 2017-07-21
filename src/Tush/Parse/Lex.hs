@@ -13,7 +13,6 @@ import Data.Char
 import qualified Data.Vector as V
 
 import Text.Megaparsec
-import Text.Megaparsec.Prim as P
 import Text.Megaparsec.Text
 import qualified Text.Megaparsec.Lexer as L
 
@@ -34,9 +33,9 @@ symbol = L.symbol spaceConsumer
 
 var :: Parser Var
 var = lexeme $ do
-  fst <- letterChar
-  rst <- many $ satisfy (\c -> isAlphaNum c || c == '_')
-  return $ fromString $ fst : rst
+  fs <- letterChar
+  rs <- many $ satisfy (\c -> isAlphaNum c || c == '_')
+  return $ fromString $ fs : rs
 
 integer :: Parser Integer
 integer = lexeme L.integer
@@ -69,6 +68,9 @@ mul = reserved "*" Mul
 
 div :: Parser BOp
 div = reserved "/" Div
+
+lt :: Parser BOp
+lt = reserved "<" Lt
 
 terminator :: Parser Terminator
 terminator = reserved ";" Terminator

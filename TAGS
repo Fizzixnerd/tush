@@ -1,18 +1,20 @@
 
-./Setup.hs,15
-main main1,2
+./Setup.hs,52
+module Main Main0,1
+main main4,5
+main main5,6
 
 ./app/Main.hs,52
 module Main Main0,1
 main main4,5
 main main5,6
 
-./src/Lib.hs,69
-module Lib Lib3,4
-someFunc someFunc9,10
-someFunc someFunc10,11
+./src/Lib.hs,70
+module Lib Lib4,5
+someFunc someFunc12,13
+someFunc someFunc13,14
 
-./src/Tush/Parse/Syntax.hs,996
+./src/Tush/Parse/Syntax.hs,1024
 module Tush.Parse.Syntax Tush.Parse.Syntax5,6
 data FProto FProto9,10
 data FProto = FProto FProto9,10
@@ -35,92 +37,98 @@ data Terminator = Terminator Terminator18,19
 data Lit Lit20,21
 data Lit = ILit ILit20,21
          | FLit FLit21,22
-data Expr Expr23,24
-data Expr = LitE LitE23,24
-          | BinOpE BinOpE24,25
-          | UnOpE UnOpE25,26
-          | VarE VarE26,27
-          | CallE CallE27,28
-data Statement Statement31,32
-data Statement = ExprS ExprS31,32
-               | FuncS FuncS32,33
-               | ExternS ExternS33,34
+         | BLit BLit22,23
+data Expr Expr24,25
+data Expr = LitE LitE24,25
+          | BinOpE BinOpE25,26
+          | UnOpE UnOpE26,27
+          | VarE VarE27,28
+          | CallE CallE28,29
+data Statement Statement32,33
+data Statement = ExprS ExprS32,33
+               | FuncS FuncS33,34
+               | ExternS ExternS34,35
 
-./src/Tush/Parse/Expr.hs,670
+./src/Tush/Parse/Expr.hs,390
 module Tush.Parse.Expr Tush.Parse.Expr5,6
-iLitE iLitE21,22
-iLitE iLitE22,23
-fLitE fLitE24,25
-fLitE fLitE25,26
-callE callE27,28
-callE callE28,29
-varE varE33,34
-varE varE34,35
-exprS exprS36,37
-exprS exprS37,38
+iLitE iLitE16,17
+iLitE iLitE17,18
+fLitE fLitE19,20
+fLitE fLitE20,21
+callE callE22,23
+callE callE23,24
+varE varE28,29
+varE varE29,30
+term term32,33
+term term33,34
+opTable opTable39,40
+opTable opTable40,41
+binary binary47,48
+binary binary48,49
+prefix prefix50,51
+prefix prefix51,52
+expr expr53,54
+expr expr54,55
+
+./src/Tush/Parse/Lex.hs,944
+module Tush.Parse.Lex Tush.Parse.Lex5,6
+lineComment lineComment18,19
+lineComment lineComment19,20
+blockComment blockComment21,22
+blockComment blockComment22,23
+spaceConsumer spaceConsumer24,25
+spaceConsumer spaceConsumer25,26
+lexeme lexeme27,28
+lexeme lexeme28,29
+symbol symbol30,31
+symbol symbol31,32
+var var33,34
+var var34,35
+integer integer39,40
+integer integer40,41
+floating floating42,43
+floating floating43,44
+reserved reserved45,46
+reserved reserved46,47
+extern extern50,51
+extern extern51,52
+def def53,54
+def def54,55
+neg neg56,57
+neg neg57,58
+add add59,60
+add add60,61
+sub sub62,63
+sub sub63,64
+mul mul65,66
+mul mul66,67
+div div68,69
+div div69,70
+lt lt71,72
+lt lt72,73
+terminator terminator74,75
+terminator terminator75,76
+parens parens77,78
+parens parens78,79
+commaSep commaSep80,81
+commaSep commaSep81,82
+semiSep semiSep83,84
+semiSep semiSep84,85
+
+./src/Tush/Parse/Statement.hs,334
+module Tush.Parse.Statement Tush.Parse.Statement2,3
+exprS exprS13,14
+exprS exprS14,15
+definitionS definitionS16,17
+definitionS definitionS17,18
+externS externS20,21
+externS externS21,22
+funcS funcS26,27
+funcS funcS27,28
+fProto fProto33,34
+fProto fProto34,35
 statement statement39,40
 statement statement40,41
-definitionS definitionS46,47
-definitionS definitionS47,48
-fProto fProto50,51
-fProto fProto51,52
-externS externS56,57
-externS externS57,58
-funcS funcS62,63
-funcS funcS63,64
-term term70,71
-term term71,72
-opTable opTable77,78
-opTable opTable78,79
-binary binary84,85
-binary binary85,86
-prefix prefix87,88
-prefix prefix88,89
-expr expr90,91
-expr expr91,92
-
-./src/Tush/Parse/Lex.hs,918
-module Tush.Parse.Lex Tush.Parse.Lex5,6
-lineComment lineComment19,20
-lineComment lineComment20,21
-blockComment blockComment22,23
-blockComment blockComment23,24
-spaceConsumer spaceConsumer25,26
-spaceConsumer spaceConsumer26,27
-lexeme lexeme28,29
-lexeme lexeme29,30
-symbol symbol31,32
-symbol symbol32,33
-var var34,35
-var var35,36
-integer integer40,41
-integer integer41,42
-floating floating43,44
-floating floating44,45
-reserved reserved46,47
-reserved reserved47,48
-extern extern51,52
-extern extern52,53
-def def54,55
-def def55,56
-neg neg57,58
-neg neg58,59
-add add60,61
-add add61,62
-sub sub63,64
-sub sub64,65
-mul mul66,67
-mul mul67,68
-div div69,70
-div div70,71
-terminator terminator72,73
-terminator terminator73,74
-parens parens75,76
-parens parens76,77
-commaSep commaSep78,79
-commaSep commaSep79,80
-semiSep semiSep81,82
-semiSep semiSep82,83
 
 ./src/Tush/Expr.hs,78
 module Tush.Parse.Expr Tush.Parse.Expr5,6
@@ -267,14 +275,25 @@ liftError liftError334,335
 codeGen codeGen336,337
 codeGen codeGen337,338
 
+./src/Tush/Compile/LLVM/JIT.hs,200
+module Tush.Compile.LLVM.JIT Tush.Compile.LLVM.JIT4,5
+runJIT runJIT26,27
+runJIT runJIT27,28
+jit jit51,52
+jit jit52,53
+run run59,60
+run run60,61
+passes passes62,63
+passes passes63,64
+
 ./src/Tush/REPL.hs,170
 module Tush.REPL Tush.REPL3,4
-process process14,15
-process process15,16
-initModule initModule23,24
-initModule initModule24,25
-repl repl26,27
-repl repl27,28
+process process16,17
+process process17,18
+initModule initModule25,26
+initModule initModule26,27
+repl repl28,29
+repl repl29,30
 
 ./test/Spec.hs,89
 module Spec Spec0,1

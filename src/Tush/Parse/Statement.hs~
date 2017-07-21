@@ -1,0 +1,39 @@
+module Tush.Parse.Statement where
+
+import ClassyPrelude
+
+
+
+exprS :: Parser Statement
+exprS = ExprS <$> expr
+
+statement :: Parser Statement
+statement =  do
+  s <- MP.try definitionS
+       <|> exprS
+  void terminator
+  return s
+
+definitionS :: Parser Statement
+definitionS =  MP.try externS
+           <|> funcS
+
+fProto :: Parser FProto
+fProto = do
+  name <- var
+  args <- parens $ commaSep var
+  return $ FProto name args
+
+externS :: Parser Statement
+externS = do
+  void extern 
+  fp <- fProto
+  return $ ExternS fp
+
+funcS :: Parser Statement
+funcS = do
+  void def
+  fp <- fProto
+  body <- expr
+  return $ FuncS fp body
+

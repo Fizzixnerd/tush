@@ -25,7 +25,7 @@ import Text.Megaparsec.Text
 
 import Tush.Parse.Syntax
 import Tush.Parse.Lex
-import Tush.Parse.Expr
+import Tush.Parse.Statement
 
 type TushParseError = ParseError Char Dec
 

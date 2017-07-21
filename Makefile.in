@@ -1,0 +1,11 @@
+CC=@CC@
+LD=@CC@
+CFLAGS=@CFLAGS@
+SOFLAGS=-fPIC -c
+
+io.so: io.c
+	$(CC) $(CFLAGS) $(SOFLAGS) -o $@ $^
+
+.PHONY: clean
+clean:
+	rm -f *.o *.so

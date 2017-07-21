@@ -19,7 +19,8 @@ data UOp = Neg deriving (Eq, Ord, Show)
 data Terminator = Terminator deriving (Eq, Show)
 
 data Lit = ILit Integer
-         | FLit Double deriving (Eq, Ord, Show)
+         | FLit Double
+         | BLit Bool deriving (Eq, Ord, Show)
 
 data Expr = LitE Lit
           | BinOpE BOp Expr Expr

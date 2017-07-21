@@ -132,3 +132,63 @@
      => /bin/chmod :: File
      =:> <executable binary file>
    #+END_SRC
+
+** Working Through http://www.stephendiehl.com/llvm/
+
+*** Chapters 1 - 4
+
+    Completed.  Features at this point follow.
+
+**** [[file:../src/Tush/Parse/Syntax.hs][First-Class Internal Support For]]
+
+     Statements
+     - Expression Statements
+       - Literals:
+         - Integer
+         - Floating-point
+       - Binary Operations (Static)
+	 - +
+	 - - (subtraction)
+	 - *
+	 - /
+	 - < (comparison)
+       - Unary Operations (Static)
+	 - - (negate)
+       - Variable References
+       - Function Calls
+     - Function Definitions
+     - External Function Declarations
+
+**** [[file:../src/Tush/Parse/Lex.hs][Lexer]]
+
+     Lexing of:
+
+     comments (thrown out)
+     symbols
+     "extern", "def" keywords
+     "+", "-", "*", "/", "<" binary ops
+     "-" unary ops
+     int literals
+     float literals
+     bool literals
+     ";" terminator character
+     comma-separated parser combinator
+     semicolon-separated parser combinator
+     parens parser combinator
+
+**** [[file:../src/Tush/Parse/Expr.hs][Expressions]]
+     
+     See above.  Right now all operations besides function calls are
+     statically tabled.  i.e. we cannot define new binary/unary
+     operators without using function call syntax.
+
+     However, we have =binary= and =prefix= combinators in order to
+     extend what is already there.  At the time of writing I'm adding
+     comparison support.
+
+***** TODO Check if the above was done and works
+
+**** [[file:../src/Tush/Parse/Statement.hs][Statements]]
+
+     See [[Lexer]] above.
+     

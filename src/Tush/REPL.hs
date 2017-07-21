@@ -7,6 +7,8 @@ import ClassyPrelude
 
 import Tush.Parse
 import Tush.Compile.LLVM.CodeGen
+import Tush.Compile.LLVM.JIT
+
 import Control.Monad.Trans
 import System.Console.Haskeline
 
@@ -34,5 +36,7 @@ repl = runInputT defaultSettings (loop initModule)
         Just input -> do
           modn <- liftIO $ process mod (fromString input)
           case modn of
-            Just modn -> loop modn
+            Just modn -> do
+              liftIO $ runJIT modn
+              loop modn
             Nothing -> loop mod
