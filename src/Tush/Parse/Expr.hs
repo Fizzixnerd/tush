@@ -1,7 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Tush.Parse.Expr where
 
@@ -14,36 +11,49 @@ import Text.Megaparsec.Expr
 import Tush.Parse.Lex as L
 import Tush.Parse.Syntax
 
-iLitE :: Parser Expr
+iLitE :: Parser Expression
 iLitE = LitE <$> ILit <$> integer
 
-fLitE :: Parser Expr
+fLitE :: Parser Expression
 fLitE = LitE <$> FLit <$> floating
 
-callE :: Parser Expr
+varE :: Parser Expression
+varE = VarE <$> var
+
+callE :: Parser Expression
 callE = do
   name <- var
   args <- parens $ commaSep expr
   return $ CallE name args
 
-varE :: Parser Expr
-varE = VarE <$> var
+ifE :: Parser Expression
+ifE = do
+  void $ if'
+  condE <- expr
+  void $ then'
+  consE <- expr
+  void $ else'
+  anteE <- expr
+  return $ IfE condE consE anteE
 
--- Doesn't yet include funcalls
-term :: Parser Expr
+term :: Parser Expression
 term =  MP.try fLitE
     <|> MP.try iLitE
+    <|> MP.try ifE
     <|> MP.try callE
     <|> varE
     <|> parens expr
 
-opTable :: [[Operator Parser Expr]]
+opTable :: [[Operator Parser Expression]]
 opTable = [ [ prefix neg (\x -> UnOpE Neg x) ]
           , [ binary mul (\x y -> BinOpE Mul x y)
             , binary L.div (\x y -> BinOpE Div x y) ]
           , [ binary add (\x y -> BinOpE Add x y)
             , binary sub (\x y -> BinOpE Sub x y) ]
-          , [ binary lt (\x y -> BinOpE Lt x y) ] ]
+          , [ binary lt (\x y -> BinOpE Lt x y) ] 
+          , [ prefix not' (\x -> UnOpE Not x) ]
+          , [ binary and' (\x y -> BinOpE And x y) ]
+          , [ binary or' (\x y -> BinOpE Or x y) ] ]
 
 binary :: Parser a -> (b -> b -> b) -> Operator Parser b
 binary p f = InfixL $ f <$ p
@@ -51,5 +61,5 @@ binary p f = InfixL $ f <$ p
 prefix :: Parser a -> (b -> b) -> Operator Parser b
 prefix p f = Prefix $ f <$ p
 
-expr :: Parser Expr
+expr :: Parser Expression
 expr = makeExprParser term opTable <?> "expression"

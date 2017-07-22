@@ -14,106 +14,143 @@ module Lib Lib4,5
 someFunc someFunc12,13
 someFunc someFunc13,14
 
-./src/Tush/Parse/Syntax.hs,1024
-module Tush.Parse.Syntax Tush.Parse.Syntax5,6
-data FProto FProto9,10
-data FProto = FProto FProto9,10
-newtype Var Var12,13
-newtype Var = Var Var12,13
-data Extern Extern14,15
-data Extern = Extern Extern14,15
-data Def Def15,16
-data Def = Def Def15,16
-data BOp BOp16,17
-data BOp = Add Add16,17
-data BOp = Add | Sub Sub16,17
-data BOp = Add | Sub | Mul Mul16,17
-data BOp = Add | Sub | Mul | Div Div16,17
-data BOp = Add | Sub | Mul | Div | Lt Lt16,17
-data UOp UOp17,18
-data UOp = Neg Neg17,18
-data Terminator Terminator18,19
-data Terminator = Terminator Terminator18,19
-data Lit Lit20,21
-data Lit = ILit ILit20,21
-         | FLit FLit21,22
-         | BLit BLit22,23
-data Expr Expr24,25
-data Expr = LitE LitE24,25
-          | BinOpE BinOpE25,26
-          | UnOpE UnOpE26,27
-          | VarE VarE27,28
-          | CallE CallE28,29
-data Statement Statement32,33
-data Statement = ExprS ExprS32,33
-               | FuncS FuncS33,34
-               | ExternS ExternS34,35
+./src/Tush/Parse/Syntax.hs,1798
+module Tush.Parse.Syntax Tush.Parse.Syntax4,5
+data Extern Extern10,11
+data Extern = Extern Extern10,11
+data Def Def11,12
+data Def = Def Def11,12
+data If If13,14
+data If = If If13,14
+data Then Then14,15
+data Then = Then Then14,15
+data Else Else15,16
+data Else = Else Else15,16
+data Terminator Terminator17,18
+data Terminator = Terminator Terminator17,18
+newtype Var Var19,20
+newtype Var = Var Var19,20
+data BOp BOp21,22
+data BOp = Add Add21,22
+data BOp = Add | Sub Sub21,22
+data BOp = Add | Sub | Mul Mul21,22
+data BOp = Add | Sub | Mul | Div Div21,22
+data BOp = Add | Sub | Mul | Div | Lt Lt21,22
+data BOp = Add | Sub | Mul | Div | Lt | Or Or21,22
+data BOp = Add | Sub | Mul | Div | Lt | Or | And And21,22
+data UOp UOp22,23
+data UOp = Neg Neg22,23
+data UOp = Neg | Not Not22,23
+data FProto FProto27,28
+data FProto = FProto FProto27,28
+data FProto = FProto { fProtoName fProtoName27,28
+                     , fProtoArgs fProtoArgs28,29
+data Literal Literal32,33
+data Literal = ILit ILit32,33
+             | FLit FLit33,34
+             | BLit BLit34,35
+data Expression Expression36,37
+data Expression = LitE LitE36,37
+                | BinOpE BinOpE37,38
+                | UnOpE UnOpE38,39
+                | VarE VarE39,40
+                | CallE CallE40,41
+                | CallE { callEName callEName40,41
+                        , callEArgs callEArgs41,42
+                | IfE IfE43,44
+                | IfE { ifEConditional ifEConditional43,44
+                      , ifEConsequent ifEConsequent44,45
+                      , ifEAntecedent ifEAntecedent45,46
+data Statement Statement49,50
+data Statement = ExprS ExprS49,50
+               | FuncS FuncS50,51
+               | ExternS ExternS51,52
 
-./src/Tush/Parse/Expr.hs,390
-module Tush.Parse.Expr Tush.Parse.Expr5,6
-iLitE iLitE16,17
-iLitE iLitE17,18
-fLitE fLitE19,20
-fLitE fLitE20,21
+./src/Tush/Parse/Expr.hs,420
+module Tush.Parse.Expr Tush.Parse.Expr2,3
+iLitE iLitE13,14
+iLitE iLitE14,15
+fLitE fLitE16,17
+fLitE fLitE17,18
+varE varE19,20
+varE varE20,21
 callE callE22,23
 callE callE23,24
-varE varE28,29
-varE varE29,30
-term term32,33
-term term33,34
-opTable opTable39,40
-opTable opTable40,41
-binary binary47,48
-binary binary48,49
-prefix prefix50,51
-prefix prefix51,52
-expr expr53,54
-expr expr54,55
+ifE ifE28,29
+ifE ifE29,30
+term term38,39
+term term39,40
+opTable opTable46,47
+opTable opTable47,48
+binary binary57,58
+binary binary58,59
+prefix prefix60,61
+prefix prefix61,62
+expr expr63,64
+expr expr64,65
 
-./src/Tush/Parse/Lex.hs,944
-module Tush.Parse.Lex Tush.Parse.Lex5,6
-lineComment lineComment18,19
-lineComment lineComment19,20
-blockComment blockComment21,22
-blockComment blockComment22,23
-spaceConsumer spaceConsumer24,25
-spaceConsumer spaceConsumer25,26
-lexeme lexeme27,28
-lexeme lexeme28,29
-symbol symbol30,31
-symbol symbol31,32
-var var33,34
-var var34,35
-integer integer39,40
-integer integer40,41
-floating floating42,43
-floating floating43,44
-reserved reserved45,46
-reserved reserved46,47
-extern extern50,51
-extern extern51,52
-def def53,54
-def def54,55
-neg neg56,57
-neg neg57,58
-add add59,60
-add add60,61
-sub sub62,63
-sub sub63,64
-mul mul65,66
-mul mul66,67
-div div68,69
-div div69,70
-lt lt71,72
-lt lt72,73
-terminator terminator74,75
-terminator terminator75,76
-parens parens77,78
-parens parens78,79
-commaSep commaSep80,81
-commaSep commaSep81,82
-semiSep semiSep83,84
-semiSep semiSep84,85
+./src/Tush/Parse/Lex.hs,1287
+module Tush.Parse.Lex Tush.Parse.Lex3,4
+lineComment lineComment16,17
+lineComment lineComment17,18
+blockComment blockComment19,20
+blockComment blockComment20,21
+spaceConsumer spaceConsumer22,23
+spaceConsumer spaceConsumer23,24
+lexeme lexeme25,26
+lexeme lexeme26,27
+symbol symbol28,29
+symbol symbol29,30
+var var31,32
+var var32,33
+integer integer37,38
+integer integer38,39
+true true40,41
+true true41,42
+false false45,46
+false false46,47
+boolean boolean50,51
+boolean boolean51,52
+if' if'54,55
+if' if'55,56
+then' then'57,58
+then' then'58,59
+else' else'60,61
+else' else'61,62
+floating floating63,64
+floating floating64,65
+reserved reserved66,67
+reserved reserved67,68
+extern extern71,72
+extern extern72,73
+def def74,75
+def def75,76
+neg neg77,78
+neg neg78,79
+not' not'80,81
+not' not'81,82
+add add83,84
+add add84,85
+sub sub86,87
+sub sub87,88
+mul mul89,90
+mul mul90,91
+div div92,93
+div div93,94
+lt lt95,96
+lt lt96,97
+or' or'98,99
+or' or'99,100
+and' and'101,102
+and' and'102,103
+terminator terminator104,105
+terminator terminator105,106
+parens parens107,108
+parens parens108,109
+commaSep commaSep110,111
+commaSep commaSep111,112
+semiSep semiSep113,114
+semiSep semiSep114,115
 
 ./src/Tush/Parse/Statement.hs,334
 module Tush.Parse.Statement Tush.Parse.Statement2,3

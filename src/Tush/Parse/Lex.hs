@@ -1,7 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
 
 module Tush.Parse.Lex where
 
@@ -12,7 +10,7 @@ import Tush.Parse.Syntax
 import Data.Char
 import qualified Data.Vector as V
 
-import Text.Megaparsec
+import Text.Megaparsec as MP
 import Text.Megaparsec.Text
 import qualified Text.Megaparsec.Lexer as L
 
@@ -40,6 +38,29 @@ var = lexeme $ do
 integer :: Parser Integer
 integer = lexeme L.integer
 
+true :: Parser Bool
+true = do
+  void $ symbol "true" 
+  return True
+
+false :: Parser Bool
+false = do
+  void $ symbol "false"
+  return False
+
+boolean :: Parser Bool
+boolean = MP.try true
+          <|>    false
+
+if' :: Parser If
+if' = reserved "if" If
+
+then' :: Parser Then
+then' = reserved "then" Then
+
+else' :: Parser Else
+else' = reserved "else" Else
+
 floating :: Parser Double
 floating = lexeme L.float
 
@@ -57,6 +78,9 @@ def = reserved "def" Def
 neg :: Parser UOp
 neg = reserved "-" Neg
 
+not' :: Parser UOp
+not' = reserved "not" Not
+
 add :: Parser BOp
 add = reserved "+" Add
 
@@ -71,6 +95,12 @@ div = reserved "/" Div
 
 lt :: Parser BOp
 lt = reserved "<" Lt
+
+or' :: Parser BOp
+or' = reserved "||" Or
+
+and' :: Parser BOp
+and' = reserved "&&" And
 
 terminator :: Parser Terminator
 terminator = reserved ";" Terminator
