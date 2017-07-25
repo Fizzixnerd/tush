@@ -29,11 +29,40 @@ lexeme = L.lexeme spaceConsumer
 symbol :: String -> Parser String
 symbol = L.symbol spaceConsumer
 
-var :: Parser Var
+var :: Parser (Var ())
 var = lexeme $ do
   fs <- letterChar
   rs <- many $ satisfy (\c -> isAlphaNum c || c == '_')
-  return $ fromString $ fs : rs
+  return $ Var (fromString $ fs : rs) ()
+
+simplyTypedVar :: Parser (SimplyTypedVar ())
+simplyTypedVar = do
+  v <- var
+  void $ typeAs
+  st <- simpleType
+  return $ SimplyTypedVar v st
+
+simpleType :: Parser BuiltinType
+simpleType =     MP.try intType
+             <|> MP.try floatType
+             <|>        boolType
+             <|> MP.try functionType
+
+intType :: Parser BuiltinType
+intType = reserved "Int" BTInt
+
+floatType :: Parser BuiltinType
+floatType = reserved "Float" BTFloat
+
+boolType :: Parser BuiltinType
+boolType = reserved "Bool" BTBool
+
+functionType :: Parser BuiltinType
+functionType = do
+  args <- parens $ commaSep simpleType
+  void arrow
+  retType <- simpleType
+  return $ BTLambda retType args
 
 integer :: Parser Integer
 integer = lexeme L.integer
@@ -104,6 +133,12 @@ and' = reserved "&&" And
 
 terminator :: Parser Terminator
 terminator = reserved ";" Terminator
+
+typeAs :: Parser TypeAs
+typeAs = reserved ":" TypeAs
+
+arrow :: Parser Arrow
+arrow = reserved "->" Arrow
 
 parens :: Parser a -> Parser a
 parens = between (symbol "(") (symbol ")")

@@ -36,13 +36,13 @@ contents p = do
   eof
   return r
 
-toplevel :: Parser (Vector Statement)
+toplevel :: Parser (Vector (Statement ()))
 toplevel = fromList <$> many statement  
 
-parseStatement :: Text -> Either TushParseError Statement
+parseStatement :: Text -> Either TushParseError (Statement ())
 parseStatement s = parse (contents statement) "<stdin>" s
 
-parseToplevel :: Text -> Either TushParseError (Vector Statement)
+parseToplevel :: Text -> Either TushParseError (Vector (Statement ()))
 parseToplevel s = parse (contents toplevel) "<stdin>" s
 
 -- import Control.Applicative as Ap

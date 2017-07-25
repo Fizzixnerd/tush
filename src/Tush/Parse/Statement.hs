@@ -11,33 +11,33 @@ import Tush.Parse.Syntax
 import Tush.Parse.Lex
 import Tush.Parse.Expr
 
-exprS :: Parser Statement
+exprS :: Parser (Statement ())
 exprS = ExprS <$> expr
 
-definitionS :: Parser Statement
+definitionS :: Parser (Statement ())
 definitionS =  MP.try externS
            <|> funcS
 
-externS :: Parser Statement
+externS :: Parser (Statement ())
 externS = do
   void extern 
   fp <- fProto
   return $ ExternS fp
 
-funcS :: Parser Statement
+funcS :: Parser (Statement ())
 funcS = do
   void def
   fp <- fProto
   body <- expr
   return $ FuncS fp body
 
-fProto :: Parser FProto
+fProto :: Parser (FProto ())
 fProto = do
-  name <- var
-  args <- parens $ commaSep var
-  return $ FProto name args
+  (SimplyTypedVar name type') <- simplyTypedVar
+  args <- parens $ commaSep simplyTypedVar
+  return $ FProto (SimplyTypedVar name (BTLambda type' (stvType <$> args))) args
 
-statement :: Parser Statement
+statement :: Parser (Statement ())
 statement =  do
   s <- MP.try definitionS
        <|> exprS

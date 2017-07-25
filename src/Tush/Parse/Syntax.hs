@@ -16,38 +16,52 @@ data Then = Then deriving (Eq, Ord, Show)
 data Else = Else deriving (Eq, Ord, Show)
 
 data Terminator = Terminator deriving (Eq, Ord, Show)
+data TypeAs = TypeAs deriving (Eq, Ord, Show)
+data Arrow = Arrow deriving (Eq, Ord, Show)
 
-newtype Var = Var Text deriving (Eq, Ord, Show, IsString)
+data Var a = Var { varName :: Text
+                 , varInfo :: a
+                 }  deriving (Eq, Ord, Show)
+type SimplyTypedVar = Var BuiltinType
 
 data BOp = Add | Sub | Mul | Div | Lt | Or | And deriving (Eq, Ord, Show)
 data UOp = Neg | Not deriving (Eq, Ord, Show)
 
-
 -- | Syntax Tree
 
-data FProto = FProto { fProtoName :: Var
-                     , fProtoArgs :: (Vector Var)
-                     }
-            deriving (Eq, Ord, Show)
+data FProto a = FProto { fProtoName :: Var a
+                       , fProtoArgs :: Vector (Var a)
+                       }
+              deriving (Eq, Ord, Show)
 
 data Literal = ILit Integer
              | FLit Double
              | BLit Bool deriving (Eq, Ord, Show)
 
-data Expression = LitE Literal
-                | BinOpE BOp Expression Expression
-                | UnOpE  UOp Expression
-                | VarE Var
-                | CallE { callEName :: Var
-                        , callEArgs :: (Vector Expression)
+data Expression a = LitE Literal a
+                  | BinOpE BOp (Expression a) (Expression a) a
+                  | UnOpE  UOp (Expression a) a
+                  | VarE (Var a) a
+                  | CallE { callEName :: Expression a
+                          , callEArgs :: Vector (Expression a)
+                          , callEInfo :: a
+                          }
+                  | IfE { ifEConditional :: Expression a
+                        , ifEConsequent  :: Expression a
+                        , ifEAntecedent  :: Expression a
+                        , ifEInfo        :: a
                         }
-                | IfE { ifEConditional :: Expression
-                      , ifEConsequent  :: Expression
-                      , ifEAntecedent  :: Expression
-                      }
-                deriving (Eq, Ord, Show)
+                  deriving (Eq, Ord, Show)
 
-data Statement = ExprS Expression
-               | FuncS FProto Expression
-               | ExternS FProto
-               deriving (Eq, Ord, Show)
+data Statement a b = ExprS (Expression a)
+                   | FuncS (FProto b) (Vector (Statement a b))
+                   | ExternS (FProto b)
+                   deriving (Eq, Ord, Show)
+
+data BuiltinType = BTInt
+                 | BTFloat
+                 | BTBool
+                 | BTLambda { btLambdaReturnType :: BuiltinType
+                            , btLambdaArgTypes :: (Vector BuiltinType)
+                            }
+                 deriving (Eq, Ord, Show)

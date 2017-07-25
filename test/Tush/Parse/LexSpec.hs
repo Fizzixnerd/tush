@@ -1,34 +1,36 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Tush.Parse.LexSpec where
 
+import ClassyPrelude
+
+import Tush.Parse.Syntax
 import Tush.Parse.Lex
 
 import Test.Hspec
 
 import Data.Either
-import Data.List
-import Data.Vector
 
 import Text.Megaparsec
-import Text.Megaparsec.Char
 
+lexSpec :: IO ()
 lexSpec = hspec $ do
   describe "Tush.Parse.Lex" $ do
-    describe "Tush.Parse.Lex.identifier" $ do
+    describe "var" $ do
 
       it "Parses single-letter names." $ do
-        runParser identifier "" "x" `shouldBe` (Right $ Identifier "x")
+        runParser var "" "x" `shouldBe` (Right $ Var "x" ())
 
       it "Parses multi-letter names." $ do
-        runParser identifier "" "xyz" `shouldBe` (Right $ Identifier "xyz")
+        runParser var "" "xyz" `shouldBe` (Right $ Var "xyz" ())
 
       it "Parses alphanumeric names after first letter." $ do
-        runParser identifier "" "xyz2" `shouldBe` (Right $ Identifier "xyz2")
+        runParser var "" "xyz2" `shouldBe` (Right $ Var "xyz2" ())
 
       it "Fails to parse things which begin with a digit." $ do
-        runParser identifier "" "3xy" `shouldSatisfy` isLeft
+        runParser var "" "3xy" `shouldSatisfy` isLeft
 
-    describe "Tush.Parse.Lex.integer" $ do
+    describe "integer" $ do
     
       it "Parses single-digit numbers." $ do
         runParser integer "" "1" `shouldBe` (Right 1)
@@ -39,7 +41,7 @@ lexSpec = hspec $ do
       it "Fails on negative numbers (should be parsed as unary negate on the positive number)." $ do
         runParser integer "" "-1" `shouldSatisfy` isLeft
 
-    describe "Tush.Parse.Lex.floating" $ do
+    describe "floating" $ do
       
       it "Parses '1.0'." $ do
         runParser floating "" "1.0" `shouldBe` (Right 1.0)
@@ -50,7 +52,7 @@ lexSpec = hspec $ do
       it "Fails on negative numbers (should be parsed as unary negate on the positive number)." $ do
         runParser floating "" "-1.0" `shouldSatisfy` isLeft
 
-    describe "Tush.Parse.Lex.lineComment" $ do
+    describe "lineComment" $ do
       
       it "Parses the empty comment." $ do
         runParser lineComment "" "--" `shouldBe` (Right ())
@@ -61,27 +63,27 @@ lexSpec = hspec $ do
       it "Parses a non-empty comment." $ do
         runParser (lineComment >> eof) "" "-- Hello darkness my old friend." `shouldBe` (Right ())
     
-    describe "Tush.Parse.Lex.blockComment" $ do
+    describe "blockComment" $ do
       
       it "Parses block comments." $ do
         runParser blockComment "" "{- hello\n there neighbour -}" `shouldBe` (Right ())
 
-    describe "Tush.Parse.Lex.reserved" $ do
+    describe "reserved" $ do
       
       it "Parses reserved words and ops." $ do
         runParser extern "" "extern" `shouldBe` (Right Extern)
 
-    describe "Tush.Parse.Lex.parens" $ do
+    describe "parens" $ do
       
       it "Parses stuff between parens." $ do
         runParser (parens extern) "" "(extern)" `shouldBe` (Right Extern)
 
-    describe "Tush.Parse.Lex.commaSep" $ do
+    describe "commaSep" $ do
       
       it "Parses comma separated stuff." $ do
         runParser (commaSep extern) "" "extern, extern, extern" `shouldBe` (Right $ fromList [Extern, Extern, Extern])
     
-    describe "Tush.Parse.Lex.semiSep" $ do
+    describe "semiSep" $ do
 
       it "Parses semicolon separated stuff." $ do
         runParser (semiSep extern) "" "extern; extern; extern" `shouldBe` (Right $ fromList [Extern, Extern, Extern])

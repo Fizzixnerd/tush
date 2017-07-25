@@ -9,15 +9,10 @@ import qualified Data.ByteString.Char8 as BS
 
 import Foreign.Ptr (FunPtr, castFunPtr)
 
-import Control.Monad.Except
-
 import qualified LLVM.AST as AST
 import LLVM.Module
 import LLVM.Context
-import LLVM.Target
-import LLVM.CodeModel
 import LLVM.PassManager
-import LLVM.Transforms
 import LLVM.Analysis
 
 import qualified LLVM.ExecutionEngine as EE
@@ -25,14 +20,14 @@ import qualified LLVM.ExecutionEngine as EE
 foreign import ccall "dynamic" haskFun :: FunPtr (IO Double) -> (IO Double)
 
 runJIT :: AST.Module -> IO AST.Module
-runJIT mod = do
+runJIT mod' = do
   withContext $ \context ->
-    withModuleFromAST context mod $ \m ->
+    withModuleFromAST context mod' $ \m ->
     withPassManager passes $ \pm -> do
       -- verify the AST
       verify m
       -- optimize the module
-      runPassManager pm m
+      void $ runPassManager pm m
       optmod <- moduleAST m
       s <- moduleLLVMAssembly m
       -- jit compile and run the code

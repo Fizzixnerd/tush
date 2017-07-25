@@ -1,0 +1,67 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+module Tush.Typecheck.TypecheckSpec where
+
+import ClassyPrelude
+
+import qualified Data.Map as M
+
+import Test.Hspec
+
+import Tush.Parse.Syntax
+import Tush.Typecheck.Typecheck
+
+typecheckSpec :: IO ()
+typecheckSpec = hspec $ do
+  describe "Tush.Typecheck.Typecheck" $ do
+
+    describe "typeInfer.LitE" $ do
+
+      it "Infers type of integer literals." $ do
+        typeInfer (LitE (ILit 3)) mempty `shouldBe` BTInt
+
+
+      it "Infers type of floating literals." $ do
+        typeInfer (LitE (FLit 3.0)) mempty `shouldBe` BTFloat
+
+      it "Infers type of boolean literals." $ do
+        typeInfer (LitE (BLit True)) mempty `shouldBe` BTBool
+
+    describe "typeInfer.BinOpE" $ do
+      
+      it "Infers integer for integer binops" $ do
+        typeInfer (BinOpE Add (LitE (ILit 3)) (LitE (ILit 4))) mempty `shouldBe` BTInt
+
+      it "Infers bool for integer comparisons" $ do
+        typeInfer (BinOpE Lt (LitE (ILit 3)) (LitE (ILit 4))) mempty `shouldBe` BTBool
+
+      it "Infers float for floating binops" $ do
+        typeInfer (BinOpE Mul (LitE (FLit 3.0)) (LitE (FLit 4.0))) mempty `shouldBe` BTFloat
+
+      it "Infers bool for floating comparisons" $ do
+        typeInfer (BinOpE Lt (LitE (FLit 3.0)) (LitE (FLit 4.0))) mempty `shouldBe` BTBool
+
+      -- | TODO: Should throw when args types are mismatched.
+
+    describe "typeInfer.VarE" $ do
+
+      it "Infers correct type of a VarE" $ do
+        typeInfer (VarE (Var "x" ())) (M.fromList [(Var "x" (), BTInt)]) `shouldBe` BTInt
+
+      -- | TODO: Should throw when var undefined.
+
+    describe "typeInfer.CallE" $ do
+
+      it "Infers correct type of a function call." $ do
+        typeInfer (CallE (Var "f" ()) (fromList [LitE (FLit 4.0)])) (M.fromList [(Var "f" (), BTLambda { btLambdaReturnType = BTFloat
+                                                                                                       , btLambdaArgTypes = fromList [BTFloat] 
+                                                                                                       })])
+          `shouldBe` BTFloat
+
+      -- | TODO The comments code here throws from pure code and so doesn't work.
+      -- it "Throws on incorrect type of a function call." $ do
+      --   (return (typeInfer (CallE (Var "f" ()) (fromList [LitE (ILit 3)])) (M.fromList [(Var "f" (), BTLambda { btLambdaReturnType = BTFloat
+      --                                                                                                         , btLambdaArgTypes = fromList [BTFloat] 
+      --                                                                                                         })])) :: IO BuiltinType) 
+      --     `shouldThrow` anyErrorCall
