@@ -24,6 +24,7 @@ library
                      , Tush.Parse.Syntax
                      , Tush.Parse.Expr
                      , Tush.Parse.Statement
+                     , Tush.Typecheck.Typecheck
                      , Tush.Compile.LLVM.CodeGen
                      , Tush.Compile.LLVM.JIT
                      , Tush.REPL
@@ -67,7 +68,10 @@ test-suite tush-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  build-depends:       base
+  build-depends:       base-noprelude
+                     , base
+                     , classy-prelude
+                     , hspec
                      , tush
                      , megaparsec
                      , tasty

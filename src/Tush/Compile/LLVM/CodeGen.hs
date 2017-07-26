@@ -191,6 +191,17 @@ local t = LocalReference t
 localDouble :: Name -> Operand
 localDouble = local double
 
+localInt :: Name -> Operand
+localInt = local int
+
+localBoolean :: Name -> Operand
+localBoolean = local boolean
+
+localV :: S.BuiltinType -> Name -> Operand
+localV S.BTInt = localInt
+localV S.BTFloat = localDouble
+localV S.BTBool = localBoolean
+
 constant :: C.Constant -> Operand
 constant = ConstantOperand
 
@@ -279,58 +290,62 @@ load ptr = instr $ Load False ptr Nothing 0 []
 
 --- Compilation
 
-codeGenTop :: (S.Statement () S.BuiltinType) -> LLVM ()
-codeGenTop (S.FuncS (S.FProto (S.Var name _) args) body) = do
-  define double (textToSBS name) (V.toList fnargs) bls
+codeGenTop :: (S.Statement S.BuiltinType S.BuiltinType) -> LLVM ()
+codeGenTop (S.FuncS (S.FProto (S.Var name ty) args) bodyS bodyE) = do
+  define (builtinTypeToType $ S.btLambdaReturnType ty) (textToSBS name) (V.toList fnargs) bls
+  void $ forM bodyS codeGenTop
   where
     fnargs = toSig <$> args
     bls = createBlocks $ execCodeGen $ do
       entry <- addBlock entryBlockName
       setBlock entry
-      forM args $ \(S.Var a t) -> do
-        var <- alloca double
-        store var $ localDouble $ (snd $ toSig (S.Var a ()))
+      forM args $ \v@(S.Var a t) -> do
+        var <- alloca (builtinTypeToType t)
+        store var $ localV t $ snd $ toSig v
         assign a var
-      cgen body >>= ret
-codeGenTop (S.ExternS (S.FProto (S.Var name _) args)) = do
-  external double (textToSBS name) (V.toList fnargs)
+      cgen bodyE >>= ret
+codeGenTop (S.ExternS (S.FProto (S.Var name ty) args)) = do
+  external (builtinTypeToType $ S.btLambdaReturnType ty) (textToSBS name) (V.toList fnargs)
   where
     fnargs = toSig <$> args
 codeGenTop (S.ExprS e) = do
-  define double "main" [] blks
+  define double "main" [] blks -- | FIXME: This shouldn't be `double'.
   where
     blks = createBlocks $ execCodeGen $ do
       entry <- addBlock entryBlockName
       setBlock entry
       cgen e >>= ret
 
+varToName :: S.Var a -> Name
+varToName (S.Var name _) = Name $ textToSBS name
+
 textToSBS :: Text -> ShortByteString
 textToSBS = fromString . BS.unpack . TE.encodeUtf8
 
 toSig :: S.SimplyTypedVar -> (Type, Name)
-toSig v@(S.Var x t) = (builtinTypeToType t, textToSBS x)
+toSig (S.Var x t) = (builtinTypeToType t, Name $ textToSBS x)
 
--- | FIXME: This is super wrong!
-builtinTypeToType = const double
+builtinTypeToType :: S.BuiltinType -> Type
+builtinTypeToType S.BTFloat = double
+builtinTypeToType S.BTInt   = int
+builtinTypeToType S.BTBool  = boolean
 
-binops :: Map S.BOp (Operand -> Operand -> CodeGen Operand)
-binops = M.fromList [
-    (S.Add, fadd)
-  , (S.Sub, fsub)
-  , (S.Mul, fmul)
-  , (S.Div, fdiv)
-  , (S.Lt , flt )
-  ]
+binops :: Map (S.BOp, S.BuiltinType) (Operand -> Operand -> CodeGen Operand)
+binops = M.fromList [ ((S.Add, S.BTFloat), fadd)
+                    , ((S.Sub, S.BTFloat), fsub)
+                    , ((S.Mul, S.BTFloat), fmul)
+                    , ((S.Div, S.BTFloat), fdiv)
+                    , ((S.Lt , S.BTFloat), flt ) ]
 
-cgen :: (S.Expression ()) -> CodeGen Operand
-cgen (S.LitE  (S.FLit n)) = return $ constant $ C.Float (F.Double n)
-cgen (S.LitE  (S.ILit n)) = return $ constant $ C.Float (F.Double (fromIntegral n))
-cgen (S.VarE  (S.Var  v _)) = getVar v >>= load
-cgen (S.CallE fn args)    = do
+cgen :: (S.Expression S.BuiltinType) -> CodeGen Operand
+cgen (S.LitE (S.FLit n) _) = return $ constant $ C.Float $ F.Double n
+cgen (S.LitE (S.ILit n) _) = return $ constant $ C.Int 64 n
+cgen (S.VarE (S.Var  v _) _) = getVar v >>= load
+cgen (S.CallE (S.VarE fn retType) args _) = do
   largs <- mapM cgen args
-  call (externf double $ varToName fn) (V.toList largs)
-cgen (S.BinOpE op a b) = do
-  case M.lookup op binops of
+  call (externf (builtinTypeToType $ S.btLambdaReturnType retType) $ varToName fn) (V.toList largs) 
+cgen (S.BinOpE op a b t) = do
+  case M.lookup (op, t) binops of
     Just f -> do
       ca <- cgen a
       cb <- cgen b
@@ -340,7 +355,7 @@ cgen (S.BinOpE op a b) = do
 liftError :: ExceptT String IO a -> IO a
 liftError = runExceptT >=> either fail return
 
-codeGen :: A.Module -> Vector (S.Statement () S.BuiltinType) -> IO A.Module
+codeGen :: A.Module -> Vector (S.Statement S.BuiltinType S.BuiltinType) -> IO A.Module
 codeGen mod fns = withContext $ \context ->
   withModuleFromAST context newast $ \m -> do
     llstr <- moduleLLVMAssembly m

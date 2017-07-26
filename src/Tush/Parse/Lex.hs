@@ -35,12 +35,12 @@ var = lexeme $ do
   rs <- many $ satisfy (\c -> isAlphaNum c || c == '_')
   return $ Var (fromString $ fs : rs) ()
 
-simplyTypedVar :: Parser (SimplyTypedVar ())
+simplyTypedVar :: Parser SimplyTypedVar
 simplyTypedVar = do
-  v <- var
+  (Var v _) <- var
   void $ typeAs
   st <- simpleType
-  return $ SimplyTypedVar v st
+  return $ Var v st
 
 simpleType :: Parser BuiltinType
 simpleType =     MP.try intType

@@ -99,9 +99,10 @@ simpleTagE lt i@(IfE cond conse ante _) = IfE (simpleTagE lt cond) (simpleTagE l
 simpleTagS' :: LocalTypes -> Statement () BuiltinType -> Statement BuiltinType BuiltinType
 simpleTagS' lt (ExprS e) = ExprS $ simpleTagE lt e
 simpleTagS' _  (ExternS fp) = (ExternS fp)
-simpleTagS' lt (FuncS fp stmnts) = FuncS fp $ simpleTagS' lt' <$> stmnts
+simpleTagS' lt (FuncS fp stmnts e) = FuncS fp (simpleTagS' lt' <$> stmnts) (simpleTagE lt'' e)
   where
     lt' = M.union lt $ constructLocalTypesFromFProto fp
+    lt'' = M.unions $ lt' : (toList $ constructLocalTypes <$> stmnts)
 
 simpleTagS :: Statement () BuiltinType -> Statement BuiltinType BuiltinType
 simpleTagS = simpleTagS' mempty
@@ -116,7 +117,7 @@ constructLocalTypesFromFProto (FProto name args) = M.fromList $ (simplyTypedVarT
                                                                 toList (simplyTypedVarToLocalTypePair <$> args)
 
 constructLocalTypesForFuncS :: Statement () BuiltinType -> LocalTypes
-constructLocalTypesForFuncS (FuncS fp xs) = concat $ cons funcLocals $ constructLocalTypes <$> xs
+constructLocalTypesForFuncS (FuncS fp xs _) = concat $ cons funcLocals $ constructLocalTypes <$> xs
   where
     funcLocals = constructLocalTypesFromFProto fp
 constructLocalTypesForFuncS x = error $ "ERROR: COMPILERERROR: Called `constructLocalTypesForFuncS' on non-FuncS: `" ++
@@ -128,7 +129,7 @@ constructLocalTypes (ExprS _) = mempty
 constructLocalTypes (ExternS (FProto name _)) = M.singleton (fst lp) $ snd lp
   where
     lp = simplyTypedVarToLocalTypePair name
-constructLocalTypes (FuncS (FProto name _) _) = M.singleton (fst lp) $ snd lp
+constructLocalTypes (FuncS (FProto name _) _ _) = M.singleton (fst lp) $ snd lp
   where
     lp = simplyTypedVarToLocalTypePair name
 

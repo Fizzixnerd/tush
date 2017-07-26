@@ -54,9 +54,13 @@ data Expression a = LitE Literal a
                   deriving (Eq, Ord, Show)
 
 data Statement a b = ExprS (Expression a)
-                   | FuncS (FProto b) (Vector (Statement a b))
+                   | FuncS (FProto b) (Vector (Statement a b)) (Expression a)
                    | ExternS (FProto b)
                    deriving (Eq, Ord, Show)
+
+isExprS :: Statement a b -> Bool
+isExprS (ExprS _) = True
+isExprS _ = False
 
 data BuiltinType = BTInt
                  | BTFloat

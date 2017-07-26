@@ -7,37 +7,42 @@ import ClassyPrelude
 import Text.Megaparsec as MP
 import Text.Megaparsec.Text
 
+import qualified Data.Vector as V
+
 import Tush.Parse.Syntax
 import Tush.Parse.Lex
 import Tush.Parse.Expr
 
-exprS :: Parser (Statement ())
+exprS :: Parser (Statement () BuiltinType)
 exprS = ExprS <$> expr
 
-definitionS :: Parser (Statement ())
+definitionS :: Parser (Statement () BuiltinType)
 definitionS =  MP.try externS
            <|> funcS
 
-externS :: Parser (Statement ())
+externS :: Parser (Statement () BuiltinType)
 externS = do
   void extern 
   fp <- fProto
   return $ ExternS fp
 
-funcS :: Parser (Statement ())
+funcS :: Parser (Statement () BuiltinType)
 funcS = do
   void def
   fp <- fProto
-  body <- expr
-  return $ FuncS fp body
+  body <- fromList <$> many statement
+  case V.last body of
+    (ExprS e) -> return $ FuncS fp (V.init body) e
+    _ -> fail "Expected last statement in a function body to be "
 
-fProto :: Parser (FProto ())
+
+fProto :: Parser (FProto BuiltinType)
 fProto = do
-  (SimplyTypedVar name type') <- simplyTypedVar
+  (Var name type') <- simplyTypedVar
   args <- parens $ commaSep simplyTypedVar
-  return $ FProto (SimplyTypedVar name (BTLambda type' (stvType <$> args))) args
+  return $ FProto (Var name (BTLambda type' ((\(Var _ t) -> t) <$> args))) args
 
-statement :: Parser (Statement ())
+statement :: Parser (Statement () BuiltinType)
 statement =  do
   s <- MP.try definitionS
        <|> exprS

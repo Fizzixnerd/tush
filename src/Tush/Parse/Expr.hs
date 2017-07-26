@@ -12,19 +12,19 @@ import Tush.Parse.Lex as L
 import Tush.Parse.Syntax
 
 iLitE :: Parser (Expression ())
-iLitE = LitE <$> ILit <$> integer
+iLitE = (flip LitE ()) <$> ILit <$> integer
 
 fLitE :: Parser (Expression ())
-fLitE = LitE <$> FLit <$> floating
+fLitE = (flip LitE ()) <$> FLit <$> floating
 
 varE :: Parser (Expression ())
-varE = VarE <$> var
+varE = (flip VarE ()) <$> var
 
 callE :: Parser (Expression ())
 callE = do
-  name <- var
+  name <- varE
   args <- parens $ commaSep expr
-  return $ CallE name args
+  return $ CallE name args ()
 
 ifE :: Parser (Expression ())
 ifE = do
@@ -34,7 +34,7 @@ ifE = do
   consE <- expr
   void $ else'
   anteE <- expr
-  return $ IfE condE consE anteE
+  return $ IfE condE consE anteE ()
 
 term :: Parser (Expression ())
 term =  MP.try fLitE
@@ -45,15 +45,15 @@ term =  MP.try fLitE
     <|> parens expr
 
 opTable :: [[Operator Parser (Expression ())]]
-opTable = [ [ prefix neg   (\x   -> UnOpE  Neg x  ) ]
-          , [ binary mul   (\x y -> BinOpE Mul x y)
-            , binary L.div (\x y -> BinOpE Div x y) ]
-          , [ binary add   (\x y -> BinOpE Add x y)
-            , binary sub   (\x y -> BinOpE Sub x y) ]
-          , [ binary lt    (\x y -> BinOpE Lt  x y) ] 
-          , [ prefix not'  (\x   -> UnOpE  Not x  ) ]
-          , [ binary and'  (\x y -> BinOpE And x y) ]
-          , [ binary or'   (\x y -> BinOpE Or  x y) ] ]
+opTable = [ [ prefix neg   (\x   -> UnOpE  Neg x   ()) ]
+          , [ binary mul   (\x y -> BinOpE Mul x y ())
+            , binary L.div (\x y -> BinOpE Div x y ()) ]
+          , [ binary add   (\x y -> BinOpE Add x y ())
+            , binary sub   (\x y -> BinOpE Sub x y ()) ]
+          , [ binary lt    (\x y -> BinOpE Lt  x y ()) ] 
+          , [ prefix not'  (\x   -> UnOpE  Not x   ()) ]
+          , [ binary and'  (\x y -> BinOpE And x y ()) ]
+          , [ binary or'   (\x y -> BinOpE Or  x y ()) ] ]
 
 binary :: Parser a -> (b -> b -> b) -> Operator Parser b
 binary p f = InfixL $ f <$ p

@@ -6,10 +6,10 @@ module Tush.REPL where
 import ClassyPrelude
 
 import Tush.Parse
+import Tush.Typecheck.Typecheck
 import Tush.Compile.LLVM.CodeGen
 import Tush.Compile.LLVM.JIT
 
-import Control.Monad.Trans
 import System.Console.Haskeline
 
 import LLVM.AST
@@ -20,7 +20,8 @@ process modo source = do
   case res of
     Left e -> print e >> return Nothing
     Right r -> do
-      ast <- codeGen modo r
+      let 
+      ast <- codeGen modo (simpleTagS <$> r)
       return $ Just ast
 
 initModule :: Module
