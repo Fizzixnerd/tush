@@ -28,36 +28,30 @@ typecheckSpec = hspec $ do
       it "Infers type of boolean literals." $ do
         typecheck mempty (LitE (BLit True) ()) `shouldBe` BTBool
 
-    describe "typecheck.BinOpE" $ do
-      
-      it "Infers integer for integer binops" $ do
-        typecheck mempty (BinOpE Add (LitE (ILit 3) ()) (LitE (ILit 4) ()) ()) `shouldBe` BTInt
-
-      it "Infers bool for integer comparisons" $ do
-        typecheck mempty (BinOpE Lt (LitE (ILit 3) ()) (LitE (ILit 4) ()) ()) `shouldBe` BTBool
-
-      it "Infers float for floating binops" $ do
-        typecheck mempty (BinOpE Mul (LitE (FLit 3.0) ()) (LitE (FLit 4.0) ()) ()) `shouldBe` BTFloat
-
-      it "Infers bool for floating comparisons" $ do
-        typecheck mempty (BinOpE Lt (LitE (FLit 3.0) ()) (LitE (FLit 4.0) ()) ()) `shouldBe` BTBool
-
-      -- | TODO: Should throw when args types are mismatched.
-
     describe "typecheck.VarE" $ do
 
       it "Infers correct type of a VarE" $ do
-        typecheck (M.fromList [(Var "x" (), BTInt)]) (VarE (Var "x" ()) ()) `shouldBe` BTInt
+        typecheck (M.fromList [(Var "x" () False, BTInt)]) (VarE (Var "x" () False) ()) `shouldBe` BTInt
 
       -- | TODO: Should throw when var undefined.
 
     describe "typecheck.CallE" $ do
 
       it "Infers correct type of a function call." $ do
-        typecheck (M.fromList [(Var "f" (), BTLambda { btLambdaReturnType = BTFloat
-                                                     , btLambdaArgTypes = fromList [BTFloat] 
-                                                     })]) (CallE (VarE (Var "f" ()) ()) (fromList [LitE (FLit 4.0) ()]) ()) 
+        typecheck (M.fromList [(Var "f" () False, BTLambda { btLambdaReturnType = BTFloat
+                                                           , btLambdaArgTypes = fromList [BTFloat] 
+                                                           })]) (CallE (VarE (Var "f" () False) ()) (fromList [LitE (FLit 4.0) ()]) ()) 
           `shouldBe` BTFloat
+
+    describe "simpleTagE.CallE" $ do
+
+      it "Tags addition of Ints correctly." $ do
+        simpleTagE defaultEnv (CallE (VarE (Var "+" () True) ()) (fromList [LitE (ILit 4) (), LitE (ILit 3) ()]) ())
+          `shouldBe` (CallE (VarE (Var "+" (BTLambda BTInt (fromList [BTInt, BTInt])) True) (BTLambda BTInt (fromList [BTInt, BTInt]))) (fromList [LitE (ILit 4) BTInt, LitE (ILit 3) BTInt]) BTInt)
+
+      it "Should fail" $ do
+        simpleTagE defaultEnv (CallE (VarE (Var "+" () True) ()) (fromList [LitE (FLit 4.0) (), LitE (FLit 3.0) ()]) ())
+          `shouldBe` (CallE (VarE (Var "+" (BTLambda BTInt (fromList [BTInt, BTInt])) True) (BTLambda BTInt (fromList [BTInt, BTInt]))) (fromList [LitE (ILit 4) BTInt, LitE (ILit 3) BTInt]) BTInt)
 
       -- | TODO The comments code here throws from pure code and so
       -- doesn't work.  But the actual code works, so whatever I'll

@@ -27,6 +27,7 @@ library
                      , Tush.Typecheck.Typecheck
                      , Tush.Compile.LLVM.CodeGen
                      , Tush.Compile.LLVM.JIT
+                     , Tush.Compile.LLVM.Mangle
                      , Tush.REPL
                      , Lib
   build-depends:       HUnit
@@ -68,9 +69,15 @@ test-suite tush-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
+  other-modules:       Tush.Parse.LexSpec
+                     , Tush.Parse.ParseSpec
+                     , Tush.Parse.ExprSpec
+                     , Tush.Typecheck.TypecheckSpec
   build-depends:       base-noprelude
                      , base
                      , classy-prelude
+                     , containers
+                     , vector
                      , hspec
                      , tush
                      , megaparsec

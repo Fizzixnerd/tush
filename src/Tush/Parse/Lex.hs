@@ -33,20 +33,29 @@ var :: Parser (Var ())
 var = lexeme $ do
   fs <- letterChar
   rs <- many $ satisfy (\c -> isAlphaNum c || c == '_')
-  return $ Var (fromString $ fs : rs) ()
+  return $ Var (fromString $ fs : rs) () False
+
+operator :: Parser (Var ())
+operator = lexeme $ do
+  s <- many $ (symbolChar <|> (oneOf ['.', '*', '/']))
+  return $ Var (fromString s) () True
+
+var' :: Parser (Var ())
+var' = MP.try operator 
+       <|>    var
 
 simplyTypedVar :: Parser SimplyTypedVar
 simplyTypedVar = do
-  (Var v _) <- var
+  (Var v _ op) <- var
   void $ typeAs
   st <- simpleType
-  return $ Var v st
+  return $ Var v st op
 
 simpleType :: Parser BuiltinType
 simpleType =     MP.try intType
              <|> MP.try floatType
-             <|>        boolType
-             <|> MP.try functionType
+             <|> MP.try boolType -- Used to be switched wrt to the MP.try here... wtf?
+             <|>        functionType
 
 intType :: Parser BuiltinType
 intType = reserved "Int" BTInt
@@ -103,33 +112,6 @@ extern = reserved "extern" Extern
 
 def :: Parser Def
 def = reserved "def" Def
-
-neg :: Parser UOp
-neg = reserved "-" Neg
-
-not' :: Parser UOp
-not' = reserved "not" Not
-
-add :: Parser BOp
-add = reserved "+" Add
-
-sub :: Parser BOp
-sub = reserved "-" Sub
-
-mul :: Parser BOp
-mul = reserved "*" Mul
-
-div :: Parser BOp
-div = reserved "/" Div
-
-lt :: Parser BOp
-lt = reserved "<" Lt
-
-or' :: Parser BOp
-or' = reserved "||" Or
-
-and' :: Parser BOp
-and' = reserved "&&" And
 
 terminator :: Parser Terminator
 terminator = reserved ";" Terminator

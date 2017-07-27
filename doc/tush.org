@@ -135,7 +135,7 @@
 
 ** Working Through http://www.stephendiehl.com/llvm/
 
-*** Chapters 1 - 4
+*** DONE Chapters 1 - 4
 
     Completed.  Features at this point follow.
 
@@ -186,8 +186,35 @@
      extend what is already there.  At the time of writing I'm adding
      comparison support.
 
-***** TODO Check if the above was done and works
+***** DONE Check if the above was done and works
 
 **** [[file:../src/Tush/Parse/Statement.hs][Statements]]
 
      See [[Lexer]] above.
+
+** TODO If Expressions and Friends
+     
+*** TODO Moving BinOpE and UnOpE into Function-land.
+
+   I want BinOps and UnOps to be functions now.  Basically I ran into
+   a problem where LT (<) was causing problems in =if= expressions
+   because every other binop is of type a -> a -> a, but < is a -> a
+   -> Bool.  The code assumed the former in all cases.  Moving them to
+   functions would solve this problem and also give me operator
+   functions and a whole bunch of other stuff for free.
+
+**** The Plan
+
+    We would basically create a global environment populated with
+    intrinsic functions.  A better way to do this would be to add
+    module support and have only intrinsic functions and then DEFINE
+    and IMPORT a prelude, but that is way, way beyond the scope of
+    this project right now.
+
+    In [[file:../src/Tush/Typecheck/Typecheck.hs::simpleTagS][the typechecking code]] which has an environment, we need to
+    create a default environment that is kept up to date with other
+    code.  At this point I would recommend putting all the GlobalEnv
+    stuff in its own file so that it's easier to remember to change
+    both when we update one.
+
+    

@@ -21,11 +21,9 @@ data Arrow = Arrow deriving (Eq, Ord, Show)
 
 data Var a = Var { varName :: Text
                  , varInfo :: a
+                 , varIsOperator :: Bool
                  }  deriving (Eq, Ord, Show)
 type SimplyTypedVar = Var BuiltinType
-
-data BOp = Add | Sub | Mul | Div | Lt | Or | And deriving (Eq, Ord, Show)
-data UOp = Neg | Not deriving (Eq, Ord, Show)
 
 -- | Syntax Tree
 
@@ -39,8 +37,6 @@ data Literal = ILit Integer
              | BLit Bool deriving (Eq, Ord, Show)
 
 data Expression a = LitE Literal a
-                  | BinOpE BOp (Expression a) (Expression a) a
-                  | UnOpE  UOp (Expression a) a
                   | VarE (Var a) a
                   | CallE { callEName :: Expression a
                           , callEArgs :: Vector (Expression a)

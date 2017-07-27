@@ -14,7 +14,10 @@ import Tush.Parse.Lex
 import Tush.Parse.Expr
 
 exprS :: Parser (Statement () BuiltinType)
-exprS = ExprS <$> expr
+exprS = do
+  e <- expr
+  void terminator
+  return $ ExprS e
 
 definitionS :: Parser (Statement () BuiltinType)
 definitionS =  MP.try externS
@@ -24,6 +27,7 @@ externS :: Parser (Statement () BuiltinType)
 externS = do
   void extern 
   fp <- fProto
+  void terminator
   return $ ExternS fp
 
 funcS :: Parser (Statement () BuiltinType)
@@ -38,14 +42,11 @@ funcS = do
 
 fProto :: Parser (FProto BuiltinType)
 fProto = do
-  (Var name type') <- simplyTypedVar
+  (Var name type' op) <- simplyTypedVar
   args <- parens $ commaSep simplyTypedVar
-  return $ FProto (Var name (BTLambda type' ((\(Var _ t) -> t) <$> args))) args
+  return $ FProto (Var name (BTLambda type' ((\(Var _ t _) -> t) <$> args)) op) args
 
 statement :: Parser (Statement () BuiltinType)
-statement =  do
-  s <- MP.try definitionS
-       <|> exprS
-  void terminator
-  return s
+statement = MP.try definitionS
+            <|> exprS
 

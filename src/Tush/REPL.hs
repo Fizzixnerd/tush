@@ -20,8 +20,10 @@ process modo source = do
   case res of
     Left e -> print e >> return Nothing
     Right r -> do
-      let 
-      ast <- codeGen modo (simpleTagS <$> r)
+      print r
+      let taggedR = simpleTagS <$> r
+      print taggedR
+      ast <- codeGen modo taggedR
       return $ Just ast
 
 initModule :: Module

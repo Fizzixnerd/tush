@@ -19,13 +19,13 @@ lexSpec = hspec $ do
     describe "var" $ do
 
       it "Parses single-letter names." $ do
-        runParser var "" "x" `shouldBe` (Right $ Var "x" ())
+        runParser var "" "x" `shouldBe` (Right $ Var "x" () False)
 
       it "Parses multi-letter names." $ do
-        runParser var "" "xyz" `shouldBe` (Right $ Var "xyz" ())
+        runParser var "" "xyz" `shouldBe` (Right $ Var "xyz" () False)
 
       it "Parses alphanumeric names after first letter." $ do
-        runParser var "" "xyz2" `shouldBe` (Right $ Var "xyz2" ())
+        runParser var "" "xyz2" `shouldBe` (Right $ Var "xyz2" () False)
 
       it "Fails to parse things which begin with a digit." $ do
         runParser var "" "3xy" `shouldSatisfy` isLeft

@@ -9,12 +9,7 @@ module Main Main0,1
 main main4,5
 main main5,6
 
-./src/Lib.hs,70
-module Lib Lib4,5
-someFunc someFunc12,13
-someFunc someFunc13,14
-
-./src/Tush/Parse/Syntax.hs,2570
+./src/Tush/Parse/Syntax.hs,2145
 module Tush.Parse.Syntax Tush.Parse.Syntax4,5
 data Extern Extern10,11
 data Extern = Extern Extern10,11
@@ -36,78 +31,65 @@ data Var Var21,22
 data Var a = Var Var21,22
 data Var a = Var { varName varName21,22
                  , varInfo varInfo22,23
-type SimplyTypedVar SimplyTypedVar24,25
-data BOp BOp26,27
-data BOp = Add Add26,27
-data BOp = Add | Sub Sub26,27
-data BOp = Add | Sub | Mul Mul26,27
-data BOp = Add | Sub | Mul | Div Div26,27
-data BOp = Add | Sub | Mul | Div | Lt Lt26,27
-data BOp = Add | Sub | Mul | Div | Lt | Or Or26,27
-data BOp = Add | Sub | Mul | Div | Lt | Or | And And26,27
-data UOp UOp27,28
-data UOp = Neg Neg27,28
-data UOp = Neg | Not Not27,28
-data FProto FProto31,32
-data FProto a = FProto FProto31,32
-data FProto a = FProto { fProtoName fProtoName31,32
-                       , fProtoArgs fProtoArgs32,33
-data Literal Literal36,37
-data Literal = ILit ILit36,37
-             | FLit FLit37,38
-             | BLit BLit38,39
-data Expression Expression40,41
-data Expression a = LitE LitE40,41
-                  | BinOpE BinOpE41,42
-                  | UnOpE UnOpE42,43
-                  | VarE VarE43,44
-                  | CallE CallE44,45
-                  | CallE { callEName callEName44,45
-                          , callEArgs callEArgs45,46
-                          , callEInfo callEInfo46,47
-                  | IfE IfE48,49
-                  | IfE { ifEConditional ifEConditional48,49
-                        , ifEConsequent ifEConsequent49,50
-                        , ifEAntecedent ifEAntecedent50,51
-                        , ifEInfo ifEInfo51,52
-data Statement Statement55,56
-data Statement a b = ExprS ExprS55,56
-                   | FuncS FuncS56,57
-                   | ExternS ExternS57,58
-isExprS isExprS60,61
-isExprS isExprS61,62
-data BuiltinType BuiltinType64,65
-data BuiltinType = BTIntBTInt64,65
-                 | BTFloatBTFloat65,66
-                 | BTBoolBTBool66,67
-                 | BTLambda BTLambda67,68
-                 | BTLambda { btLambdaReturnType btLambdaReturnType67,68
-                            , btLambdaArgTypes btLambdaArgTypes68,69
+                 , varIsOperator varIsOperator23,24
+type SimplyTypedVar SimplyTypedVar25,26
+data FProto FProto29,30
+data FProto a = FProto FProto29,30
+data FProto a = FProto { fProtoName fProtoName29,30
+                       , fProtoArgs fProtoArgs30,31
+data Literal Literal34,35
+data Literal = ILit ILit34,35
+             | FLit FLit35,36
+             | BLit BLit36,37
+data Expression Expression38,39
+data Expression a = LitE LitE38,39
+                  | VarE VarE39,40
+                  | CallE CallE40,41
+                  | CallE { callEName callEName40,41
+                          , callEArgs callEArgs41,42
+                          , callEInfo callEInfo42,43
+                  | IfE IfE44,45
+                  | IfE { ifEConditional ifEConditional44,45
+                        , ifEConsequent ifEConsequent45,46
+                        , ifEAntecedent ifEAntecedent46,47
+                        , ifEInfo ifEInfo47,48
+data Statement Statement51,52
+data Statement a b = ExprS ExprS51,52
+                   | FuncS FuncS52,53
+                   | ExternS ExternS53,54
+isExprS isExprS56,57
+isExprS isExprS57,58
+data BuiltinType BuiltinType60,61
+data BuiltinType = BTIntBTInt60,61
+                 | BTFloatBTFloat61,62
+                 | BTBoolBTBool62,63
+                 | BTLambda BTLambda63,64
+                 | BTLambda { btLambdaReturnType btLambdaReturnType63,64
+                            , btLambdaArgTypes btLambdaArgTypes64,65
 
-./src/Tush/Parse/Expr.hs,420
-module Tush.Parse.Expr Tush.Parse.Expr2,3
+./src/Tush/Parse/Expr.hs,423
+module Tush.Parse.Expr Tush.Parse.Expr3,4
 iLitE iLitE13,14
 iLitE iLitE14,15
 fLitE fLitE16,17
 fLitE fLitE17,18
-varE varE19,20
-varE varE20,21
-callE callE22,23
-callE callE23,24
-ifE ifE28,29
-ifE ifE29,30
-term term38,39
-term term39,40
-opTable opTable46,47
-opTable opTable47,48
-binary binary57,58
-binary binary58,59
-prefix prefix60,61
-prefix prefix61,62
-expr expr63,64
-expr expr64,65
+bLitE bLitE19,20
+bLitE bLitE20,21
+varE varE22,23
+varE varE23,24
+operatorE operatorE25,26
+operatorE operatorE26,27
+varCallE varCallE28,29
+varCallE varCallE29,30
+opCallE opCallE34,35
+opCallE opCallE35,36
+ifE ifE41,42
+ifE ifE42,43
+term term51,52
+term term52,53
+expr expr60,61
 
-./src/Tush/Parse/Lex.hs,1762
+./src/Tush/Parse/Lex.hs,1545
 module Tush.Parse.Lex Tush.Parse.Lex3,4
 lineComment lineComment16,17
 lineComment lineComment17,18
@@ -121,85 +103,71 @@ symbol symbol28,29
 symbol symbol29,30
 var var31,32
 var var32,33
-simplyTypedVar simplyTypedVar37,38
-simplyTypedVar simplyTypedVar38,39
-simpleType simpleType44,45
-simpleType simpleType45,46
-intType intType50,51
-intType intType51,52
-floatType floatType53,54
-floatType floatType54,55
-boolType boolType56,57
-boolType boolType57,58
-functionType functionType59,60
-functionType functionType60,61
-integer integer66,67
-integer integer67,68
-true true69,70
-true true70,71
-false false74,75
-false false75,76
-boolean boolean79,80
-boolean boolean80,81
-if' if'83,84
-if' if'84,85
-then' then'86,87
-then' then'87,88
-else' else'89,90
-else' else'90,91
-floating floating92,93
-floating floating93,94
-reserved reserved95,96
-reserved reserved96,97
-extern extern100,101
-extern extern101,102
-def def103,104
-def def104,105
-neg neg106,107
-neg neg107,108
-not' not'109,110
-not' not'110,111
-add add112,113
-add add113,114
-sub sub115,116
-sub sub116,117
-mul mul118,119
-mul mul119,120
-div div121,122
-div div122,123
-lt lt124,125
-lt lt125,126
-or' or'127,128
-or' or'128,129
-and' and'130,131
-and' and'131,132
-terminator terminator133,134
-terminator terminator134,135
-typeAs typeAs136,137
-typeAs typeAs137,138
-arrow arrow139,140
-arrow arrow140,141
-parens parens142,143
-parens parens143,144
-commaSep commaSep145,146
-commaSep commaSep146,147
-semiSep semiSep148,149
-semiSep semiSep149,150
+operator operator37,38
+operator operator38,39
+var' var'42,43
+var' var'43,44
+simplyTypedVar simplyTypedVar46,47
+simplyTypedVar simplyTypedVar47,48
+simpleType simpleType53,54
+simpleType simpleType54,55
+intType intType59,60
+intType intType60,61
+floatType floatType62,63
+floatType floatType63,64
+boolType boolType65,66
+boolType boolType66,67
+functionType functionType68,69
+functionType functionType69,70
+integer integer75,76
+integer integer76,77
+true true78,79
+true true79,80
+false false83,84
+false false84,85
+boolean boolean88,89
+boolean boolean89,90
+if' if'92,93
+if' if'93,94
+then' then'95,96
+then' then'96,97
+else' else'98,99
+else' else'99,100
+floating floating101,102
+floating floating102,103
+reserved reserved104,105
+reserved reserved105,106
+extern extern109,110
+extern extern110,111
+def def112,113
+def def113,114
+terminator terminator115,116
+terminator terminator116,117
+typeAs typeAs118,119
+typeAs typeAs119,120
+arrow arrow121,122
+arrow arrow122,123
+parens parens124,125
+parens parens125,126
+commaSep commaSep127,128
+commaSep commaSep128,129
+semiSep semiSep130,131
+semiSep semiSep131,132
 
 ./src/Tush/Parse/Statement.hs,334
 module Tush.Parse.Statement Tush.Parse.Statement2,3
 exprS exprS15,16
 exprS exprS16,17
-definitionS definitionS18,19
-definitionS definitionS19,20
-externS externS22,23
-externS externS23,24
-funcS funcS28,29
-funcS funcS29,30
-fProto fProto38,39
-fProto fProto39,40
-statement statement44,45
-statement statement45,46
+definitionS definitionS21,22
+definitionS definitionS22,23
+externS externS25,26
+externS externS26,27
+funcS funcS32,33
+funcS funcS33,34
+fProto fProto42,43
+fProto fProto43,44
+statement statement48,49
+statement statement49,50
 
 ./src/Tush/Expr.hs,78
 module Tush.Parse.Expr Tush.Parse.Expr5,6
@@ -218,145 +186,163 @@ parseStatement parseStatement42,43
 parseToplevel parseToplevel44,45
 parseToplevel parseToplevel45,46
 
-./src/Tush/Compile/LLVM/CodeGen.hs,3765
+./src/Tush/Compile/LLVM/CodeGen.hs,4154
 module Tush.Compile.LLVM.CodeGen Tush.Compile.LLVM.CodeGen4,5
-type SymbolTable SymbolTable31,32
-type Names Names32,33
-data CodeGenState CodeGenState34,35
-data CodeGenState = CodeGenState CodeGenState34,35
-    currentBlock currentBlock35,36
-  , blocks blocks36,37
-  , symtab symtab37,38
-  , blockCount blockCount38,39
-  , count count39,40
-  , names names40,41
-data BlockState BlockState43,44
-data BlockState = BlockState BlockState43,44
-    idx idx44,45
-  , stack stack45,46
-  , term term46,47
-newtype CodeGen CodeGen49,50
-newtype CodeGen a = CodeGen CodeGen49,50
-newtype CodeGen a = CodeGen { runCodeGen runCodeGen49,50
-newtype LLVM LLVM52,53
-newtype LLVM a = LLVM LLVM52,53
-data BlockHasNoTerminatorException BlockHasNoTerminatorException55,56
-data BlockHasNoTerminatorException = BlockHasNoTerminatorException BlockHasNoTerminatorException55,56
-entryBlockName entryBlockName61,62
-entryBlockName entryBlockName62,63
-emptyBlock emptyBlock64,65
-sortBlocks sortBlocks70,71
-sortBlocks sortBlocks71,72
-createBlocks createBlocks73,74
-createBlocks createBlocks74,75
-makeBlock makeBlock76,77
-makeBlock makeBlock77,78
-double double84,85
-double double85,86
-int int87,88
-int int88,89
-boolean boolean90,91
-boolean boolean91,92
-emptyCodeGen emptyCodeGen95,96
-emptyCodeGen emptyCodeGen96,97
-execCodeGen execCodeGen98,99
-execCodeGen execCodeGen99,100
-runLLVM runLLVM103,104
-runLLVM runLLVM104,105
-emptyModule emptyModule106,107
-emptyModule emptyModule107,108
-entry entry109,110
-entry entry110,111
-addBlock addBlock113,114
-addBlock addBlock114,115
-setBlock setBlock126,127
-setBlock setBlock127,128
-getBlock getBlock131,132
-getBlock getBlock132,133
-modifyBlock modifyBlock134,135
-modifyBlock modifyBlock135,136
-current current139,140
-current current140,141
-fresh fresh147,148
-fresh fresh148,149
-addDefn addDefn155,156
-addDefn addDefn156,157
-define define160,161
-define define161,162
-external external169,170
-external external170,171
-uniqueName uniqueName181,182
-uniqueName uniqueName182,183
-local local187,188
-local local188,189
-localDouble localDouble190,191
-localDouble localDouble191,192
-localInt localInt193,194
-localInt localInt194,195
-localBoolean localBoolean196,197
-localBoolean localBoolean197,198
-localV localV199,200
-localV localV200,201
-constant constant204,205
-constant constant205,206
-uitofp uitofp207,208
-uitofp uitofp208,209
-externf externf210,211
-externf externf211,212
-assign assign213,214
-assign assign214,215
-getVar getVar218,219
-getVar getVar219,220
-instr instr225,226
-instr instr226,227
-terminator terminator234,235
-terminator terminator235,236
-fadd fadd242,243
-fadd fadd243,244
-fsub fsub245,246
-fsub fsub246,247
-fmul fmul248,249
-fmul fmul249,250
-fdiv fdiv251,252
-fdiv fdiv252,253
-fcmp fcmp254,255
-fcmp fcmp255,256
-flt flt257,258
-flt flt258,259
-br br264,265
-br br265,266
-cbr cbr267,268
-cbr cbr268,269
-ret ret270,271
-ret ret271,272
-toArg toArg273,274
-toArg toArg274,275
-call call276,277
-call call277,278
-alloca alloca281,282
-alloca alloca282,283
-store store284,285
-store store285,286
-load load287,288
-load load288,289
-codeGenTop codeGenTop292,293
-codeGenTop codeGenTop293,294
-varToName varToName318,319
-varToName varToName319,320
-textToSBS textToSBS321,322
-textToSBS textToSBS322,323
-toSig toSig324,325
-toSig toSig325,326
-builtinTypeToType builtinTypeToType327,328
-builtinTypeToType builtinTypeToType328,329
-binops binops332,333
-binops binops333,334
-cgen cgen339,340
-cgen cgen340,341
-liftError liftError354,355
-liftError liftError355,356
-codeGen codeGen357,358
-codeGen codeGen358,359
+type SymbolTable SymbolTable33,34
+type Names Names34,35
+data CodeGenState CodeGenState36,37
+data CodeGenState = CodeGenState CodeGenState36,37
+    currentBlock currentBlock37,38
+  , blocks blocks38,39
+  , symtab symtab39,40
+  , blockCount blockCount40,41
+  , count count41,42
+  , names names42,43
+data BlockState BlockState45,46
+data BlockState = BlockState BlockState45,46
+    idx idx46,47
+  , stack stack47,48
+  , term term48,49
+newtype CodeGen CodeGen51,52
+newtype CodeGen a = CodeGen CodeGen51,52
+newtype CodeGen a = CodeGen { runCodeGen runCodeGen51,52
+newtype LLVM LLVM54,55
+newtype LLVM a = LLVM LLVM54,55
+data BlockHasNoTerminatorException BlockHasNoTerminatorException57,58
+data BlockHasNoTerminatorException = BlockHasNoTerminatorException BlockHasNoTerminatorException57,58
+entryBlockName entryBlockName63,64
+entryBlockName entryBlockName64,65
+emptyBlock emptyBlock66,67
+sortBlocks sortBlocks72,73
+sortBlocks sortBlocks73,74
+createBlocks createBlocks75,76
+createBlocks createBlocks76,77
+makeBlock makeBlock78,79
+makeBlock makeBlock79,80
+double double86,87
+double double87,88
+int int89,90
+int int90,91
+boolean boolean92,93
+boolean boolean93,94
+emptyCodeGen emptyCodeGen97,98
+emptyCodeGen emptyCodeGen98,99
+execCodeGen execCodeGen100,101
+execCodeGen execCodeGen101,102
+runLLVM runLLVM105,106
+runLLVM runLLVM106,107
+emptyModule emptyModule108,109
+emptyModule emptyModule109,110
+entry entry111,112
+entry entry112,113
+addBlock addBlock115,116
+addBlock addBlock116,117
+setBlock setBlock128,129
+setBlock setBlock129,130
+getBlock getBlock133,134
+getBlock getBlock134,135
+modifyBlock modifyBlock136,137
+modifyBlock modifyBlock137,138
+current current141,142
+current current142,143
+fresh fresh149,150
+fresh fresh150,151
+addDefn addDefn157,158
+addDefn addDefn158,159
+define define162,163
+define define163,164
+external external171,172
+external external172,173
+uniqueName uniqueName183,184
+uniqueName uniqueName184,185
+local local189,190
+local local190,191
+localDouble localDouble192,193
+localDouble localDouble193,194
+localInt localInt195,196
+localInt localInt196,197
+localBoolean localBoolean198,199
+localBoolean localBoolean199,200
+localV localV201,202
+localV localV202,203
+constant constant206,207
+constant constant207,208
+uitofp uitofp209,210
+uitofp uitofp210,211
+externf externf212,213
+externf externf213,214
+assign assign215,216
+assign assign216,217
+getVar getVar220,221
+getVar getVar221,222
+instr instr227,228
+instr instr228,229
+terminator terminator236,237
+terminator terminator237,238
+fadd fadd244,245
+fadd fadd245,246
+add add247,248
+add add248,249
+fsub fsub250,251
+fsub fsub251,252
+sub sub253,254
+sub sub254,255
+fmul fmul256,257
+fmul fmul257,258
+mul mul259,260
+mul mul260,261
+fdiv fdiv262,263
+fdiv fdiv263,264
+div div265,266
+div div266,267
+fcmp fcmp268,269
+fcmp fcmp269,270
+icmp icmp271,272
+icmp icmp272,273
+flt flt274,275
+flt flt275,276
+lt lt277,278
+lt lt278,279
+br br282,283
+br br283,284
+cbr cbr285,286
+cbr cbr286,287
+ret ret288,289
+ret ret289,290
+toArg toArg291,292
+toArg toArg292,293
+call call294,295
+call call295,296
+alloca alloca299,300
+alloca alloca300,301
+store store302,303
+store store303,304
+load load305,306
+load load306,307
+codeGenTop codeGenTop310,311
+codeGenTop codeGenTop311,312
+varToName varToName336,337
+varToName varToName337,338
+textToSBS textToSBS339,340
+textToSBS textToSBS340,341
+toSig toSig342,343
+toSig toSig343,344
+builtinTypeToType builtinTypeToType345,346
+builtinTypeToType builtinTypeToType346,347
+dispatchBinOp dispatchBinOp351,352
+dispatchBinOp dispatchBinOp352,353
+staticDispatch staticDispatch354,355
+staticDispatch staticDispatch355,356
+false false381,382
+false false382,383
+cgen cgen384,385
+cgen cgen385,386
+phi phi416,417
+phi phi417,418
+liftError liftError419,420
+liftError liftError420,421
+codeGen codeGen422,423
+codeGen codeGen423,424
 
 ./src/Tush/Compile/LLVM/JIT.hs,200
 module Tush.Compile.LLVM.JIT Tush.Compile.LLVM.JIT4,5
@@ -369,55 +355,93 @@ run run55,56
 passes passes57,58
 passes passes58,59
 
+./src/Tush/Compile/LLVM/Mangle.hs,150
+module Tush.Compile.LLVM.Mangle Tush.Compile.LLVM.Mangle3,4
+mangle mangle7,8
+mangle mangle8,9
+demangle demangle10,11
+demangle demangle11,12
+
 ./src/Tush/REPL.hs,170
 module Tush.REPL Tush.REPL3,4
 process process16,17
 process process17,18
-initModule initModule26,27
-initModule initModule27,28
-repl repl29,30
-repl repl30,31
+initModule initModule28,29
+initModule initModule29,30
+repl repl31,32
+repl repl32,33
 
-./src/Tush/Typecheck/Typecheck.hs,969
+./src/Tush/Typecheck/Typecheck.hs,1168
 module Tush.Typecheck.Typecheck Tush.Typecheck.Typecheck4,5
-type LocalTypes LocalTypes14,15
-typecheckCall typecheckCall18,19
-typecheckCall typecheckCall19,20
-typecheckIf typecheckIf43,44
-typecheckIf typecheckIf44,45
-typecheck typecheck62,63
-typecheck typecheck63,64
-simpleTagE simpleTagE88,89
-simpleTagE simpleTagE89,90
-simpleTagS' simpleTagS'98,99
-simpleTagS' simpleTagS'99,100
-simpleTagS simpleTagS106,107
+type LocalTypes LocalTypes16,17
+type Typecheck Typecheck17,18
+type Typecheck types types17,18
+type SimpleTypecheck SimpleTypecheck18,19
+type SimpleTypecheck a a18,19
+typecheckCall typecheckCall22,23
+typecheckCall typecheckCall23,24
+typecheckIf typecheckIf47,48
+typecheckIf typecheckIf48,49
+typecheck typecheck66,67
+typecheck typecheck67,68
+simpleTagE simpleTagE80,81
+simpleTagE simpleTagE81,82
+simpleTagS' simpleTagS'88,89
+simpleTagS' simpleTagS'89,90
+defaultEnv defaultEnv96,97
+defaultEnv defaultEnv97,98
 simpleTagS simpleTagS107,108
-simplyTypedVarToLocalTypePair simplyTypedVarToLocalTypePair111,112
+simpleTagS simpleTagS108,109
 simplyTypedVarToLocalTypePair simplyTypedVarToLocalTypePair112,113
-constructLocalTypesFromFProto constructLocalTypesFromFProto114,115
+simplyTypedVarToLocalTypePair simplyTypedVarToLocalTypePair113,114
 constructLocalTypesFromFProto constructLocalTypesFromFProto115,116
-constructLocalTypesForFuncS constructLocalTypesForFuncS118,119
+constructLocalTypesFromFProto constructLocalTypesFromFProto116,117
 constructLocalTypesForFuncS constructLocalTypesForFuncS119,120
-constructLocalTypes constructLocalTypes126,127
+constructLocalTypesForFuncS constructLocalTypesForFuncS120,121
 constructLocalTypes constructLocalTypes127,128
+constructLocalTypes constructLocalTypes128,129
 
-./test/Spec.hs,89
-module Spec Spec0,1
-main main6,7
-main main7,8
-tests tests9,10
-tests tests10,11
+./src/Tush/Env/Global.hs,281
+module Tush.Env.Global Tush.Env.Global3,4
+binop binop9,10
+binop binop10,11
+add add12,13
+add add13,14
+sub sub15,16
+sub sub16,17
+mul mul18,19
+mul mul19,20
+div div21,22
+div div22,23
+lt lt24,25
+lt lt25,26
+globals globals27,28
+bintrinsics bintrinsics29,30
+
+./src/Lib.hs,70
+module Lib Lib4,5
+someFunc someFunc10,11
+someFunc someFunc11,12
+
+./test/Spec.hs,55
+module Main Main0,1
+main main9,10
+main main10,11
 
 ./test/Tush/Parse/LexSpec.hs,96
 module Tush.Parse.LexSpec Tush.Parse.LexSpec2,3
 lexSpec lexSpec15,16
 lexSpec lexSpec16,17
 
-./test/Tush/Parse/ExprSpec.hs,100
-module Tush.Parse.LexSpec Tush.Parse.LexSpec2,3
+./test/Tush/Parse/ExprSpec.hs,102
+module Tush.Parse.ExprSpec Tush.Parse.ExprSpec2,3
 exprSpec exprSpec14,15
 exprSpec exprSpec15,16
+
+./test/Tush/Parse/ParseSpec.hs,108
+module Tush.Parse.ParseSpec Tush.Parse.ParseSpec3,4
+parseSpec parseSpec15,16
+parseSpec parseSpec16,17
 
 ./test/Tush/Typecheck/TypecheckSpec.hs,140
 module Tush.Typecheck.TypecheckSpec Tush.Typecheck.TypecheckSpec3,4
