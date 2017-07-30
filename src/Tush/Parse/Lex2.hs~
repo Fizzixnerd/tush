@@ -1,0 +1,42 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+
+module Tush.Parse.Lex2 where
+
+import ClassyPrelude
+
+import Tush.Parse.Syntax
+
+import qualified Text.Megaparsec as MP
+import Text.Megaparsec.Text
+import qualified Text.Megaparsec.Lexer as L
+
+comment :: Parser String
+comment = MP.between (void $ MP.string "--") MP.newline (many $ MP.noneOf ['\n'])
+
+commentT :: Parser Token
+commentT = CommentT <$> fromString <$> comment
+
+reserved :: String -> a -> Parser a
+reserved r v = do
+  r' <- MP.string r
+  void $ many MP.spaceChar
+  return v
+
+forT :: Parser Token
+forT = reserved "for" ForT
+
+ifT :: Parser Token
+ifT = reserved "if" IfT
+
+thenT :: Parser Token
+thenT = reserved "then" ThenT
+
+elseT :: Parser Token
+elseT = reserved "else" ElseT
+
+inT :: Parser Token
+inT = reserved "in" InT
+
+letT :: Parser Token
+letT = reserved "let" LetT

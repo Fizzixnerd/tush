@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Tush.REPL where
 
-import ClassyPrelude
+import ClassyPrelude as CP
 
 import Tush.Parse
 import Tush.Typecheck.Typecheck
@@ -21,13 +23,20 @@ process modo source = do
     Left e -> print e >> return Nothing
     Right r -> do
       print r
-      let taggedR = simpleTagS <$> r
-      print taggedR
-      ast <- codeGen modo taggedR
-      return $ Just ast
+      let taggedR = runSimpleTypecheck $ mapM simpleTagS r 
+      case taggedR of
+        Right good -> do
+          print good
+          ast <- codeGen modo good
+          return $ Just ast
+        Left e ->
+          throw e
 
 initModule :: Module
 initModule = emptyModule "tush"
+
+-- def printstar : Int (n : Int) if n < 1 then 0 else printstar(n - 1); putchar(42);
+
 
 repl :: IO ()
 repl = runInputT defaultSettings (loop initModule)

@@ -21,7 +21,7 @@ exprS = do
 
 definitionS :: Parser (Statement () BuiltinType)
 definitionS =  MP.try externS
-           <|> funcS
+           <|>        funcS
 
 externS :: Parser (Statement () BuiltinType)
 externS = do
@@ -34,11 +34,10 @@ funcS :: Parser (Statement () BuiltinType)
 funcS = do
   void def
   fp <- fProto
-  body <- fromList <$> many statement
+  body <- fromList <$> some statement
   case V.last body of
     (ExprS e) -> return $ FuncS fp (V.init body) e
-    _ -> fail "Expected last statement in a function body to be "
-
+    _ -> fail "Expected last statement in a function definition to be an Expression."
 
 fProto :: Parser (FProto BuiltinType)
 fProto = do
@@ -47,6 +46,6 @@ fProto = do
   return $ FProto (Var name (BTLambda type' ((\(Var _ t _) -> t) <$> args)) op) args
 
 statement :: Parser (Statement () BuiltinType)
-statement = MP.try definitionS
-            <|> exprS
+statement =  MP.try definitionS
+         <|>        exprS
 

@@ -49,14 +49,31 @@ ifE = do
   anteE <- expr
   return $ IfE condE consE anteE ()
 
+forE :: Parser (Expression ())
+forE = do
+  void for'
+  forV <- var
+  void equals
+  initE <- expr
+  void comma
+  termE <- expr
+  void comma
+  incrE <- expr
+  void in'
+  e <- expr
+  return $ ForE forV initE termE incrE e ()
+  
 term :: Parser (Expression ())
 term =  MP.try fLitE
     <|> MP.try iLitE
     <|> MP.try bLitE
-    <|> MP.try ifE
+    <|> MP.try (parens forE)
+    <|> MP.try (parens ifE)
     <|> MP.try varCallE
     <|> MP.try varE
-    <|> parens expr
+    <|>        parens expr
 
 expr =  MP.try opCallE
-    <|>        term
+    <|> MP.try forE
+    <|> MP.try ifE
+    <|> MP.try term

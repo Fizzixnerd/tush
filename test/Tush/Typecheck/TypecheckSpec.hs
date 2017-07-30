@@ -19,11 +19,11 @@ typecheckSpec = hspec $ do
     describe "typecheck.LitE" $ do
 
       it "Infers type of integer literals." $ do
-        typecheck mempty (LitE (ILit 3) ()) `shouldBe` BTInt
+        runSimpleTypecheck (typecheck (LitE (ILit 3) ())) `shouldBe` BTInt
 
 
       it "Infers type of floating literals." $ do
-        typecheck mempty (LitE (FLit 3.0) ()) `shouldBe` BTFloat
+        runSimpleTypecheck (typecheck (LitE (FLit 3.0) ())) `shouldBe` BTFloat
 
       it "Infers type of boolean literals." $ do
         typecheck mempty (LitE (BLit True) ()) `shouldBe` BTBool

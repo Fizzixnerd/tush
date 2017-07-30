@@ -30,12 +30,13 @@ library
                      , Tush.Compile.LLVM.Mangle
                      , Tush.REPL
                      , Lib
-  build-depends:       HUnit
+  build-depends:       base
+                     , HUnit
                      , QuickCheck
-                     , base-noprelude >= 4.7 && < 5
-                     , bytestring >= 0.10.8.1
+                     , bytestring
                      , classy-prelude
                      , containers
+                     , exceptions
                      , haskeline
                      , hspec
                      , llvm-hs
@@ -50,7 +51,7 @@ library
                      , vector
   c-sources:           cbits/io.c
   cc-options:         -Wall -fPIC
-  ghc-options:        -Wall -dynamic -fPIC
+--  ghc-options:        -Wall -dynamic -fPIC
   include-dirs:        include
   includes:            io.h
   install-includes:    io.h
@@ -60,7 +61,7 @@ library
 executable tush
   hs-source-dirs:      app
   main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -dynamic
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , tush
   default-language:    Haskell2010
@@ -73,17 +74,14 @@ test-suite tush-test
                      , Tush.Parse.ParseSpec
                      , Tush.Parse.ExprSpec
                      , Tush.Typecheck.TypecheckSpec
-  build-depends:       base-noprelude
-                     , base
+  build-depends:       base
                      , classy-prelude
                      , containers
                      , vector
                      , hspec
                      , tush
                      , megaparsec
-                     , tasty
                      , QuickCheck
-                     , HUnit
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N -dynamic
   default-language:    Haskell2010
 

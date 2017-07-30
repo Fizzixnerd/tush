@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -64,6 +65,7 @@ instance Exception BlockHasNoTerminatorException
 entryBlockName :: BSS.ShortByteString
 entryBlockName = "entry"
 
+emptyBlock :: Int -> BlockState
 emptyBlock i = BlockState { 
     idx = i
   , stack = mempty
@@ -104,7 +106,7 @@ execCodeGen m = execState (runCodeGen m) emptyCodeGen
 --- Block Operations
 
 runLLVM :: A.Module -> LLVM a -> A.Module
-runLLVM mod (LLVM m) = execState m mod
+runLLVM mod' (LLVM m) = execState m mod'
 
 emptyModule :: BSS.ShortByteString -> A.Module
 emptyModule label = defaultModule { moduleName = label }
@@ -203,6 +205,7 @@ localV :: S.BuiltinType -> Name -> Operand
 localV S.BTInt = localInt
 localV S.BTFloat = localDouble
 localV S.BTBool = localBoolean
+localV (S.BTLambda _ _) = error "Cannot create a local function at this time"
 
 constant :: C.Constant -> Operand
 constant = ConstantOperand
@@ -309,29 +312,29 @@ load ptr = instr $ Load False ptr Nothing 0 []
 --- Compilation
 
 codeGenTop :: (S.Statement S.BuiltinType S.BuiltinType) -> LLVM ()
-codeGenTop (S.FuncS (S.FProto n@(S.Var name ty _) args) bodyS bodyE) = do
+codeGenTop (S.FuncS (S.FProto n@(S.Var _ ty _) args) bodyS bodyE) = do
   define (builtinTypeToType $ S.btLambdaReturnType ty) (varToName n) (V.toList fnargs) bls
   void $ forM bodyS codeGenTop
   where
     fnargs = toSig <$> args
     bls = createBlocks $ execCodeGen $ do
-      entry <- addBlock entryBlockName
-      void $ setBlock entry
-      forM args $ \v@(S.Var a t _) -> do
+      entry' <- addBlock entryBlockName
+      void $ setBlock entry'
+      void $ forM args $ \v@(S.Var a t _) -> do
         var <- alloca (builtinTypeToType t)
-        store var $ localV t $ snd $ toSig v
+        void $ store var $ localV t $ snd $ toSig v
         assign a var
       cgen bodyE >>= ret
-codeGenTop (S.ExternS (S.FProto n@(S.Var name ty _) args)) = do
+codeGenTop (S.ExternS (S.FProto n@(S.Var _ ty _) args)) = do
   external (builtinTypeToType $ S.btLambdaReturnType ty) (varToName n) (V.toList fnargs)
   where
     fnargs = toSig <$> args
 codeGenTop (S.ExprS e) = do
-  define double "main" [] blks -- | FIXME: This shouldn't be `double'.
+  define (builtinTypeToType (S.exprInfo e)) "main" [] blks -- | FIXED: This shouldn't be `double'.
   where
     blks = createBlocks $ execCodeGen $ do
-      entry <- addBlock entryBlockName
-      void $ setBlock entry
+      entry' <- addBlock entryBlockName
+      void $ setBlock entry'
       cgen e >>= ret
 
 varToName :: S.Var a -> Name
@@ -385,6 +388,7 @@ false = constant $ C.Int 1 0
 cgen :: (S.Expression S.BuiltinType) -> CodeGen Operand
 cgen (S.LitE (S.FLit n) _) = return $ constant $ C.Float $ F.Double n
 cgen (S.LitE (S.ILit n) _) = return $ constant $ C.Int 64 n
+cgen (S.LitE (S.BLit b) _) = return $ constant $ C.Int 1 (fromIntegral $ fromEnum b)
 cgen (S.VarE (S.Var  v _ _) _) = getVar v >>= load 
 cgen (S.CallE (S.VarE fn@(S.Var _ _ True) ftype) args _) = do
   largs <- mapM cgen args
@@ -392,6 +396,7 @@ cgen (S.CallE (S.VarE fn@(S.Var _ _ True) ftype) args _) = do
 cgen (S.CallE (S.VarE fn@(S.Var _ _ False) ftype) args _) = do
   largs <- mapM cgen args
   call (externf (builtinTypeToType $ S.btLambdaReturnType ftype) $ varToName fn) (V.toList largs) 
+cgen (S.CallE _ _ _) = error "Can only call named functions at the moment."
 cgen (S.IfE cond conse anted t) = do
   ifthen <- addBlock "if.then"
   ifelse <- addBlock "if.else"
@@ -413,6 +418,33 @@ cgen (S.IfE cond conse anted t) = do
 
   void $ setBlock ifexit
   phi (builtinTypeToType t) [(trval, ifthen'), (flval, ifelse')]
+cgen (S.ForE {..}) = do
+  forloop <- addBlock "for.loop"
+  forexit <- addBlock "for.exit"
+
+  i <- alloca (builtinTypeToType $ S.varInfo forEVar)
+  istart <- cgen forEInitializer
+  stepval <- cgen forEIncrementer
+  
+  void $ store i istart
+  assign (S.varName forEVar) i
+  void $ br forloop
+
+  void $ setBlock forloop
+  void $ cgen forEExpression
+  ival <- load i
+  inext <- add ival stepval
+  void $ store i inext
+
+  cond <- cgen forETerminator
+  test <- icmp IP.NE false cond
+  void $ cbr test forloop forexit
+
+  void $setBlock forexit
+  return zero
+
+zero :: Operand
+zero = constant $ C.Int 64 0
 
 phi :: Type -> [(Operand, Name)] -> CodeGen Operand
 phi t ivs = instr $ Phi t ivs []
@@ -421,11 +453,11 @@ liftError :: ExceptT String IO a -> IO a
 liftError = runExceptT >=> either fail return
 
 codeGen :: A.Module -> Vector (S.Statement S.BuiltinType S.BuiltinType) -> IO A.Module
-codeGen mod fns = withContext $ \context ->
+codeGen mod' fns = withContext $ \context ->
   withModuleFromAST context newast $ \m -> do
     llstr <- moduleLLVMAssembly m
     BS.putStrLn llstr
     return newast
   where
     modn = mapM codeGenTop fns
-    newast = runLLVM mod modn
+    newast = runLLVM mod' modn

@@ -29,20 +29,10 @@ lexeme = L.lexeme spaceConsumer
 symbol :: String -> Parser String
 symbol = L.symbol spaceConsumer
 
-var :: Parser (Var ())
-var = lexeme $ do
-  fs <- letterChar
-  rs <- many $ satisfy (\c -> isAlphaNum c || c == '_')
-  return $ Var (fromString $ fs : rs) () False
-
-operator :: Parser (Var ())
-operator = lexeme $ do
-  s <- many $ (symbolChar <|> (oneOf ['.', '*', '/']))
-  return $ Var (fromString s) () True
 
 var' :: Parser (Var ())
 var' = MP.try operator 
-       <|>    var
+    <|>       var
 
 simplyTypedVar :: Parser SimplyTypedVar
 simplyTypedVar = do
@@ -90,15 +80,6 @@ boolean :: Parser Bool
 boolean = MP.try true
           <|>    false
 
-if' :: Parser If
-if' = reserved "if" If
-
-then' :: Parser Then
-then' = reserved "then" Then
-
-else' :: Parser Else
-else' = reserved "else" Else
-
 floating :: Parser Double
 floating = lexeme L.float
 
@@ -112,6 +93,12 @@ extern = reserved "extern" Extern
 
 def :: Parser Def
 def = reserved "def" Def
+
+comma :: Parser Comma
+comma = reserved "," Comma
+
+equals :: Parser Equals
+equals = reserved "=" Equals
 
 terminator :: Parser Terminator
 terminator = reserved ";" Terminator

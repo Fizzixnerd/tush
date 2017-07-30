@@ -8,22 +8,44 @@ import ClassyPrelude
 
 -- | Tokens
 
-data Extern = Extern deriving (Eq, Ord, Show)
-data Def = Def deriving (Eq, Ord, Show)
-
-data If = If deriving (Eq, Ord, Show)
-data Then = Then deriving (Eq, Ord, Show)
-data Else = Else deriving (Eq, Ord, Show)
-
-data Terminator = Terminator deriving (Eq, Ord, Show)
-data TypeAs = TypeAs deriving (Eq, Ord, Show)
-data Arrow = Arrow deriving (Eq, Ord, Show)
+data VarClass = VClassNormal
+              | VClassOperator
+              | VClassType
+  deriving (Eq, Ord, Show)
 
 data Var a = Var { varName :: Text
                  , varInfo :: a
-                 , varIsOperator :: Bool
-                 }  deriving (Eq, Ord, Show)
+                 , varIsClass :: VarClass
+                 } deriving (Eq, Ord, Show)
 type SimplyTypedVar = Var BuiltinType
+
+-- | Tokens
+
+data ReservedWord = For 
+                  | If 
+                  | Then 
+                  | Else 
+                  | In 
+                  | Let 
+                  | Def 
+                  | Extern
+  deriving (Eq, Ord, Show)
+
+data ReservedOp = Comma
+                | Arrow
+                | Terminator
+                | TypeAs
+                | Equals
+  deriving (Eq, Ord, Show)
+
+data Token = CommentT Text
+           | ReservedWordT ReservedWord
+           | ReservedOpT ReservedOp
+           | VarT (Var ())
+           | TypeT (Var ())
+           | OpT (Var ())
+           | LiteralT Literal
+  deriving (Eq, Ord, Show)
 
 -- | Syntax Tree
 
@@ -36,8 +58,10 @@ data Literal = ILit Integer
              | FLit Double
              | BLit Bool deriving (Eq, Ord, Show)
 
-data Expression a = LitE Literal a
-                  | VarE (Var a) a
+data Expression a = LitE { litELiteral :: Literal
+                         , litEInfo :: a }
+                  | VarE { varEVar :: (Var a)
+                         , varEInfo ::  a }
                   | CallE { callEName :: Expression a
                           , callEArgs :: Vector (Expression a)
                           , callEInfo :: a
@@ -47,7 +71,21 @@ data Expression a = LitE Literal a
                         , ifEAntecedent  :: Expression a
                         , ifEInfo        :: a
                         }
+                  | ForE { forEVar :: Var a
+                         , forEInitializer :: Expression a
+                         , forETerminator :: Expression a
+                         , forEIncrementer :: Expression a
+                         , forEExpression :: Expression a
+                         , forEInfo :: a
+                         }
                   deriving (Eq, Ord, Show)
+
+exprInfo :: Expression a -> a
+exprInfo (LitE _ x) = x
+exprInfo (VarE _ x) = x
+exprInfo (CallE _ _ x) = x
+exprInfo (IfE _ _ _ x) = x
+exprInfo (ForE _ _ _ _ _ x) = x
 
 data Statement a b = ExprS (Expression a)
                    | FuncS (FProto b) (Vector (Statement a b)) (Expression a)
@@ -57,6 +95,9 @@ data Statement a b = ExprS (Expression a)
 isExprS :: Statement a b -> Bool
 isExprS (ExprS _) = True
 isExprS _ = False
+
+newtype UserType = UserType Text
+  deriving (Eq, Ord, Show)
 
 data BuiltinType = BTInt
                  | BTFloat
