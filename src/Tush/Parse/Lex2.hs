@@ -34,19 +34,19 @@ reserved r v = lexeme $ do
 
 reservedWords :: Map Text ReservedWord
 reservedWords = M.fromList [ ("if", If)
-                         , ("then", Then)
-                         , ("else", Else)
-                         , ("for", For)
-                         , ("in", In)
-                         , ("def", Def)
-                         , ("extern", Extern) ]
+                           , ("then", Then)
+                           , ("else", Else)
+                           , ("for", For)
+                           , ("in", In)
+                           , ("def", Def)
+                           , ("extern", Extern) ]
 
 reservedOps :: Map Text ReservedOp
 reservedOps = M.fromList [ (",", Comma)
-                      , ("->", Arrow)
-                      , (";", Terminator)
-                      , (":", TypeAs)
-                      , ("=", Equals) ]
+                         , ("->", Arrow)
+                         , (";", Terminator)
+                         , (":", TypeAs)
+                         , ("=", Equals) ]
 
 varT :: Parser Token
 varT = MP.label "Identifier" $ lexeme $ do
@@ -77,7 +77,7 @@ literalT =  MP.try (fmap (LiteralT . ILit) $ lexeme L.integer)
 token :: Parser Token
 token =  MP.try commentT
      <|> MP.try literalT
-     <|> MP.try varT
+     <|>        varT
 
 tokens :: Parser (Vector Token)
 tokens = fromList <$> (many token)
