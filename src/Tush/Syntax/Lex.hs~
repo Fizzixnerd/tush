@@ -2,11 +2,11 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE MultiWayIf #-}
 
-module Tush.Parse.Lex2 where
+module Tush.Syntax.Lex where
 
 import ClassyPrelude
 
-import Tush.Parse.Syntax
+import Tush.Syntax
 
 import qualified Data.Char as C
 import qualified Data.Map as M
@@ -53,7 +53,7 @@ varT = MP.label "Identifier" $ lexeme $ do
   fs <- MP.letterChar
   if | C.isUpper fs -> do -- Uppercase => Type
          rs <- many $ MP.satisfy (\c -> C.isAlphaNum c || c == '_')
-         return $ TypeT $ Var (fromString $ fs : rs) () VClassType
+         return $ VarT $ Var (fromString $ fs : rs) () VClassType
      | C.isAlpha fs -> do -- Lowercase => Var || ReservedWord
          rs <- many $ MP.satisfy (\c -> C.isAlphaNum c || c == '_')
          let result = fromString $ fs : rs
@@ -64,7 +64,7 @@ varT = MP.label "Identifier" $ lexeme $ do
          rs <- many $ MP.symbolChar <|> (MP.oneOf ['.', '*', '/', '<', '>'])
          let result = fromString $ fs : rs
          case lookup result reservedOps of
-           Nothing -> return $ OpT $ Var result () VClassOperator
+           Nothing -> return $ VarT $ Var result () VClassOperator
            Just ro -> return $ ReservedOpT ro
 
 literalT :: Parser Token

@@ -2,7 +2,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Tush.Parse.Syntax where
+module Tush.Syntax where
 
 import ClassyPrelude
 
@@ -14,8 +14,8 @@ data VarClass = VClassNormal
   deriving (Eq, Ord, Show)
 
 data Var a = Var { varName :: Text
-                 , varInfo :: a
-                 , varIsClass :: VarClass
+                 , varType :: a
+                 , varClass :: VarClass
                  } deriving (Eq, Ord, Show)
 type SimplyTypedVar = Var BuiltinType
 
@@ -31,21 +31,46 @@ data ReservedWord = For
                   | Extern
   deriving (Eq, Ord, Show)
 
-data ReservedOp = Comma
-                | Arrow
-                | Terminator
-                | TypeAs
+data ReservedOp = Arrow
                 | Equals
+  deriving (Eq, Ord, Show)
+
+data ReservedPunctuation = Comma
+                         | Semicolon
+                         | Colon
+                         | OpenParen
+                         | CloseParen
+                         | OpenBrace
+                         | CloseBrace
+                         | OpenBracket
+                         | CloseBracket
   deriving (Eq, Ord, Show)
 
 data Token = CommentT Text
            | ReservedWordT ReservedWord
            | ReservedOpT ReservedOp
-           | VarT (Var ())
-           | TypeT (Var ())
-           | OpT (Var ())
+           | ReservedPunctuationT ReservedPunctuation
+           | VarT (Var Type)
+           | TypeVarT (Var Kind)
            | LiteralT Literal
+           | TypeLiteralT TypeLiteral
   deriving (Eq, Ord, Show)
+
+isVarT :: Token -> Bool
+isVarT (VarT _) = True
+isVarT _ = False
+
+isOpenParenT :: Token -> Bool
+isOpenParenT (ReservedPunctuationT OpenParen) = True
+isOpenParenT _ = False
+
+isCommaT :: Token -> Bool
+isCommaT (ReservedPunctuationT Comma) = True
+isCommaT _ = False
+
+isTypeAsT :: Token -> Bool
+isTypeAsT (ReservedPunctuationT Colon) = True
+isTypeAsT _ = False
 
 -- | Syntax Tree
 
@@ -96,8 +121,16 @@ isExprS :: Statement a b -> Bool
 isExprS (ExprS _) = True
 isExprS _ = False
 
-newtype UserType = UserType Text
+data Type = TTypeLiteral TypeLiteral
+          | TVar (Var Kind)
   deriving (Eq, Ord, Show)
+
+data TypeLiteral = TLBuiltinType BuiltinType
+                 | TLNamed Text
+                 | TLUntyped
+  deriving (Eq, Ord, Show)
+
+type Kind = ()
 
 data BuiltinType = BTInt
                  | BTFloat
