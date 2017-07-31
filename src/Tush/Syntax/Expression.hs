@@ -8,8 +8,8 @@ import ClassyPrelude
 import Text.Megaparsec as MP
 import Text.Megaparsec.Text
 
-import Tush.Parse.Lex as L
-import Tush.Parse.Syntax
+import Tush.Syntax.Lex as L
+import Tush.Syntax
 
 iLitE :: Parser (Expression ())
 iLitE = (flip LitE ()) <$> ILit <$> integer
@@ -24,7 +24,7 @@ varE :: Parser (Expression ())
 varE = (flip VarE ()) <$> var
 
 operatorE :: Parser (Expression ())
-operatorE =  (flip VarE ()) <$> operator
+operatorE = flip VarE () <$> operator
 
 varCallE :: Parser (Expression ())
 varCallE = do

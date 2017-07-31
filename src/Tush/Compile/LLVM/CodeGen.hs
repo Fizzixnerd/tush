@@ -27,7 +27,7 @@ import LLVM.Module
 import qualified LLVM.AST.FloatingPointPredicate as FPP
 import qualified LLVM.AST.IntegerPredicate as IP
 
-import qualified Tush.Parse.Syntax as S
+import qualified Tush.Syntax as S
 import Tush.Compile.LLVM.Mangle
 
 --- Type Definitions
@@ -201,11 +201,11 @@ localInt = local int
 localBoolean :: Name -> Operand
 localBoolean = local boolean
 
-localV :: S.BuiltinType -> Name -> Operand
-localV S.BTInt = localInt
-localV S.BTFloat = localDouble
-localV S.BTBool = localBoolean
-localV (S.BTLambda _ _) = error "Cannot create a local function at this time"
+localV :: S.Type -> Name -> Operand
+localV (S.TTypeLiteral (S.TLBuiltinType S.BTInt)) = localInt
+localV (S.TTypeLiteral (S.TLBuiltinType S.BTFloat)) = localDouble
+localV (S.TTypeLiteral (S.TLBuiltinType S.BTBool)) = localBoolean
+localV (S.TTypeLiteral (S.TLBuiltinType (S.BTLambda _ _))) = error "Cannot create a local function at this time"
 
 constant :: C.Constant -> Operand
 constant = ConstantOperand
@@ -311,9 +311,14 @@ load ptr = instr $ Load False ptr Nothing 0 []
 
 --- Compilation
 
-codeGenTop :: (S.Statement S.BuiltinType S.BuiltinType) -> LLVM ()
+-- | FIXME: Partial
+lambdaReturnType (S.TTypeLiteral (S.TLBuiltinType b)) = S.btLambdaReturnType b
+
+lambdaArgTypes (S.TTypeLiteral (S.TLBuiltinType b)) = S.btLambdaArgTypes b
+
+codeGenTop :: S.Statement S.Type S.Type -> LLVM ()
 codeGenTop (S.FuncS (S.FProto n@(S.Var _ ty _) args) bodyS bodyE) = do
-  define (builtinTypeToType $ S.btLambdaReturnType ty) (varToName n) (V.toList fnargs) bls
+  define (typeToType $ lambdaReturnType ty) (varToName n) (V.toList fnargs) bls
   void $ forM bodyS codeGenTop
   where
     fnargs = toSig <$> args
@@ -321,16 +326,16 @@ codeGenTop (S.FuncS (S.FProto n@(S.Var _ ty _) args) bodyS bodyE) = do
       entry' <- addBlock entryBlockName
       void $ setBlock entry'
       void $ forM args $ \v@(S.Var a t _) -> do
-        var <- alloca (builtinTypeToType t)
+        var <- alloca (typeToType t)
         void $ store var $ localV t $ snd $ toSig v
         assign a var
       cgen bodyE >>= ret
 codeGenTop (S.ExternS (S.FProto n@(S.Var _ ty _) args)) = do
-  external (builtinTypeToType $ S.btLambdaReturnType ty) (varToName n) (V.toList fnargs)
+  external (typeToType $ lambdaReturnType ty) (varToName n) (V.toList fnargs)
   where
     fnargs = toSig <$> args
 codeGenTop (S.ExprS e) = do
-  define (builtinTypeToType (S.exprInfo e)) "main" [] blks -- | FIXED: This shouldn't be `double'.
+  define (typeToType (S.exprInfo e)) "main" [] blks -- | FIXED: This shouldn't be `double'.
   where
     blks = createBlocks $ execCodeGen $ do
       entry' <- addBlock entryBlockName
@@ -343,39 +348,39 @@ varToName (S.Var name _ _) = Name $ textToSBS $ mangle name -- FIXED mangling is
 textToSBS :: Text -> BSS.ShortByteString
 textToSBS = fromString . BS.unpack . TE.encodeUtf8
 
-toSig :: S.SimplyTypedVar -> (Type, Name)
-toSig (S.Var x t _) = (builtinTypeToType t, Name $ textToSBS x)
+toSig :: S.Var S.Type -> (Type, Name)
+toSig (S.Var x t _) = (typeToType t, Name $ textToSBS x)
 
-builtinTypeToType :: S.BuiltinType -> Type
-builtinTypeToType S.BTFloat = double
-builtinTypeToType S.BTInt   = int
-builtinTypeToType S.BTBool  = boolean
-builtinTypeToType _         = error $ "Cannot convert function types yet."
+typeToType :: S.Type -> Type
+typeToType (S.TTypeLiteral (S.TLBuiltinType S.BTFloat)) = double
+typeToType (S.TTypeLiteral (S.TLBuiltinType S.BTInt))   = int
+typeToType (S.TTypeLiteral (S.TLBuiltinType S.BTBool))  = boolean
+typeToType _                                            = error $ "Cannot convert anything else yet."
 
 dispatchBinOp :: Vector Operand -> (Operand -> Operand -> CodeGen Operand) -> CodeGen Operand
 dispatchBinOp os bop = assert (length os == 2) $ bop (os V.! 0) (os V.! 1)
 
-staticDispatch :: Show a => S.Var a -> Vector S.BuiltinType -> Vector Operand -> CodeGen Operand
+staticDispatch :: Show a => S.Var a -> Vector S.Type -> Vector Operand -> CodeGen Operand
 staticDispatch (S.Var "+" _ _) ts os 
-  | ts == fromList [S.BTInt, S.BTInt] = dispatchBinOp os add
+  | ts == fromList [S.builtinType S.BTInt, S.builtinType S.BTInt] = dispatchBinOp os add
 staticDispatch (S.Var ".+" _ _) ts os 
-  | ts == fromList [S.BTFloat, S.BTFloat] = dispatchBinOp os fadd
+  | ts == fromList [S.builtinType S.BTFloat, S.builtinType S.BTFloat] = dispatchBinOp os fadd
 staticDispatch (S.Var "-" _ _) ts os
-  | ts == fromList [S.BTInt, S.BTInt] = dispatchBinOp os sub
+  | ts == fromList [S.builtinType S.BTInt, S.builtinType S.BTInt] = dispatchBinOp os sub
 staticDispatch (S.Var ".-" _ _) ts os
-  | ts == fromList [S.BTFloat, S.BTFloat] = dispatchBinOp os fsub
+  | ts == fromList [S.builtinType S.BTFloat, S.builtinType S.BTFloat] = dispatchBinOp os fsub
 staticDispatch (S.Var "*" _ _) ts os
-  | ts == fromList [S.BTInt, S.BTInt] = dispatchBinOp os mul
+  | ts == fromList [S.builtinType S.BTInt, S.builtinType S.BTInt] = dispatchBinOp os mul
 staticDispatch (S.Var ".*" _ _) ts os
-  | ts == fromList [S.BTFloat, S.BTFloat] = dispatchBinOp os fmul
+  | ts == fromList [S.builtinType S.BTFloat, S.builtinType S.BTFloat] = dispatchBinOp os fmul
 staticDispatch (S.Var "/" _ _) ts os
-  | ts == fromList [S.BTInt, S.BTInt] = dispatchBinOp os Tush.Compile.LLVM.CodeGen.div
+  | ts == fromList [S.builtinType S.BTInt, S.builtinType S.BTInt] = dispatchBinOp os Tush.Compile.LLVM.CodeGen.div
 staticDispatch (S.Var "./" _ _) ts os
-  | ts == fromList [S.BTFloat, S.BTFloat] = dispatchBinOp os fdiv
+  | ts == fromList [S.builtinType S.BTFloat, S.builtinType S.BTFloat] = dispatchBinOp os fdiv
 staticDispatch (S.Var "<" _ _) ts os
-  | ts == fromList [S.BTInt, S.BTInt] = dispatchBinOp os lt
+  | ts == fromList [S.builtinType S.BTInt, S.builtinType S.BTInt] = dispatchBinOp os lt
 staticDispatch (S.Var ".<" _ _) ts os
-  | ts == fromList [S.BTFloat, S.BTFloat] = dispatchBinOp os flt
+  | ts == fromList [S.builtinType S.BTFloat, S.builtinType S.BTFloat] = dispatchBinOp os flt
 staticDispatch op ts _ = error $ "Could not static dispatch op `" ++ 
                          show op ++ 
                          "' with arg types `" ++ 
@@ -385,17 +390,17 @@ staticDispatch op ts _ = error $ "Could not static dispatch op `" ++
 false :: Operand
 false = constant $ C.Int 1 0
 
-cgen :: (S.Expression S.BuiltinType) -> CodeGen Operand
+cgen :: (S.Expression S.Type) -> CodeGen Operand
 cgen (S.LitE (S.FLit n) _) = return $ constant $ C.Float $ F.Double n
 cgen (S.LitE (S.ILit n) _) = return $ constant $ C.Int 64 n
 cgen (S.LitE (S.BLit b) _) = return $ constant $ C.Int 1 (fromIntegral $ fromEnum b)
 cgen (S.VarE (S.Var  v _ _) _) = getVar v >>= load 
-cgen (S.CallE (S.VarE fn@(S.Var _ _ True) ftype) args _) = do
+cgen (S.CallE (S.VarE fn@(S.Var _ _ S.VClassOperator) ftype) args _) = do
   largs <- mapM cgen args
-  staticDispatch fn (S.btLambdaArgTypes ftype) largs
-cgen (S.CallE (S.VarE fn@(S.Var _ _ False) ftype) args _) = do
+  staticDispatch fn (lambdaArgTypes ftype) largs
+cgen (S.CallE (S.VarE fn@(S.Var _ _ S.VClassNormal) ftype) args _) = do
   largs <- mapM cgen args
-  call (externf (builtinTypeToType $ S.btLambdaReturnType ftype) $ varToName fn) (V.toList largs) 
+  call (externf (typeToType $ lambdaReturnType ftype) $ varToName fn) (V.toList largs) 
 cgen (S.CallE _ _ _) = error "Can only call named functions at the moment."
 cgen (S.IfE cond conse anted t) = do
   ifthen <- addBlock "if.then"
@@ -417,31 +422,31 @@ cgen (S.IfE cond conse anted t) = do
   ifelse' <- getBlock
 
   void $ setBlock ifexit
-  phi (builtinTypeToType t) [(trval, ifthen'), (flval, ifelse')]
-cgen (S.ForE {..}) = do
-  forloop <- addBlock "for.loop"
-  forexit <- addBlock "for.exit"
+  phi (typeToType t) [(trval, ifthen'), (flval, ifelse')]
+-- cgen (S.ForE {..}) = do
+--   forloop <- addBlock "for.loop"
+--   forexit <- addBlock "for.exit"
 
-  i <- alloca (builtinTypeToType $ S.varInfo forEVar)
-  istart <- cgen forEInitializer
-  stepval <- cgen forEIncrementer
+--   i <- alloca (builtinTypeToType $ S.varInfo forEVar)
+--   istart <- cgen forEInitializer
+--   stepval <- cgen forEIncrementer
   
-  void $ store i istart
-  assign (S.varName forEVar) i
-  void $ br forloop
+--   void $ store i istart
+--   assign (S.varName forEVar) i
+--   void $ br forloop
 
-  void $ setBlock forloop
-  void $ cgen forEExpression
-  ival <- load i
-  inext <- add ival stepval
-  void $ store i inext
+--   void $ setBlock forloop
+--   void $ cgen forEExpression
+--   ival <- load i
+--   inext <- add ival stepval
+--   void $ store i inext
 
-  cond <- cgen forETerminator
-  test <- icmp IP.NE false cond
-  void $ cbr test forloop forexit
+--   cond <- cgen forETerminator
+--   test <- icmp IP.NE false cond
+--   void $ cbr test forloop forexit
 
-  void $setBlock forexit
-  return zero
+--   void $setBlock forexit
+--   return zero
 
 zero :: Operand
 zero = constant $ C.Int 64 0
@@ -452,7 +457,7 @@ phi t ivs = instr $ Phi t ivs []
 liftError :: ExceptT String IO a -> IO a
 liftError = runExceptT >=> either fail return
 
-codeGen :: A.Module -> Vector (S.Statement S.BuiltinType S.BuiltinType) -> IO A.Module
+codeGen :: A.Module -> Vector (S.Statement S.Type S.Type) -> IO A.Module
 codeGen mod' fns = withContext $ \context ->
   withModuleFromAST context newast $ \m -> do
     llstr <- moduleLLVMAssembly m

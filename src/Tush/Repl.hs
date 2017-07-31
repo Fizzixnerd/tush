@@ -7,6 +7,7 @@ module Tush.Repl where
 
 import ClassyPrelude as CP
 
+import Tush.Syntax.Lex
 import Tush.Syntax.Parse
 import Tush.Typecheck
 import Tush.Compile.LLVM.CodeGen
@@ -17,20 +18,24 @@ import System.Console.Haskeline
 import LLVM.AST
 
 process :: Module -> Text -> IO (Maybe Module)
-process modo source = do
-  let res = parseToplevel source
-  case res of
-    Left e -> print e >> return Nothing
-    Right r -> do
-      print r
-      let taggedR = runSimpleTypecheck $ mapM simpleTagS r 
-      case taggedR of
-        Right good -> do
-          print good
-          ast <- codeGen modo good
-          return $ Just ast
-        Left e ->
-          throw e
+process modo src = do
+  let lexResult = lexTopLevel src in
+    case lexResult of
+      Left e -> print e >> return Nothing
+      Right toks -> 
+        let res = parseToplevel toks in
+          case res of
+            Left e -> print e >> return Nothing
+            Right r -> do
+              print r
+              let taggedR = runSimpleTypecheck $ mapM simpleTagS r 
+              case taggedR of
+                Right good -> do
+                  print good
+                  ast <- codeGen modo good
+                  return $ Just ast
+                Left e ->
+                  throw e
 
 initModule :: Module
 initModule = emptyModule "tush"

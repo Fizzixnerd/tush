@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 module Tush.Syntax where
 
@@ -16,8 +17,11 @@ data VarClass = VClassNormal
 data Var a = Var { varName :: Text
                  , varType :: a
                  , varClass :: VarClass
-                 } deriving (Eq, Ord, Show)
-type SimplyTypedVar = Var BuiltinType
+                 } deriving (Eq, Ord, Show, Functor)
+
+isOp :: Var a -> Bool
+isOp (Var _ _ VClassOperator) = True
+isOp _ = False
 
 -- | Tokens
 
@@ -50,15 +54,24 @@ data Token = CommentT Text
            | ReservedWordT ReservedWord
            | ReservedOpT ReservedOp
            | ReservedPunctuationT ReservedPunctuation
-           | VarT (Var Type)
+           | VarT (Var (Maybe Type))
            | TypeVarT (Var Kind)
            | LiteralT Literal
            | TypeLiteralT TypeLiteral
+           | EofT
   deriving (Eq, Ord, Show)
 
 isVarT :: Token -> Bool
 isVarT (VarT _) = True
 isVarT _ = False
+
+isOpT :: Token -> Bool
+isOpT (VarT v) = isOp v
+isOpT _ = False
+
+isTypeLiteralT :: Token -> Bool
+isTypeLiteralT (TypeLiteralT _) = True
+isTypeLiteralT _ = False
 
 isOpenParenT :: Token -> Bool
 isOpenParenT (ReservedPunctuationT OpenParen) = True
@@ -68,25 +81,31 @@ isCommaT :: Token -> Bool
 isCommaT (ReservedPunctuationT Comma) = True
 isCommaT _ = False
 
-isTypeAsT :: Token -> Bool
-isTypeAsT (ReservedPunctuationT Colon) = True
-isTypeAsT _ = False
+isColonT :: Token -> Bool
+isColonT (ReservedPunctuationT Colon) = True
+isColonT _ = False
+
+isLiteralT :: Token -> Bool
+isLiteralT (LiteralT _) = True
+isLiteralT _ = False
 
 -- | Syntax Tree
 
 data FProto a = FProto { fProtoName :: Var a
                        , fProtoArgs :: Vector (Var a)
                        }
-              deriving (Eq, Ord, Show)
+              deriving (Eq, Ord, Show, Functor)
 
 data Literal = ILit Integer
              | FLit Double
              | BLit Bool deriving (Eq, Ord, Show)
 
 data Expression a = LitE { litELiteral :: Literal
-                         , litEInfo :: a }
+                         , litEInfo :: a
+                         }
                   | VarE { varEVar :: (Var a)
-                         , varEInfo ::  a }
+                         , varEInfo ::  a
+                         }
                   | CallE { callEName :: Expression a
                           , callEArgs :: Vector (Expression a)
                           , callEInfo :: a
@@ -95,22 +114,20 @@ data Expression a = LitE { litELiteral :: Literal
                         , ifEConsequent  :: Expression a
                         , ifEAntecedent  :: Expression a
                         , ifEInfo        :: a
-                        }
-                  | ForE { forEVar :: Var a
-                         , forEInitializer :: Expression a
-                         , forETerminator :: Expression a
-                         , forEIncrementer :: Expression a
-                         , forEExpression :: Expression a
-                         , forEInfo :: a
-                         }
-                  deriving (Eq, Ord, Show)
+                        } deriving (Eq, Ord, Show, Functor)
+                  -- | ForE { forEVar :: Var a
+                  --        , forEInitializer :: Expression a
+                  --        , forETerminator :: Expression a
+                  --        , forEIncrementer :: Expression a
+                  --        , forEExpression :: Expression a
+                  --        , forEInfo :: a
+                  --        }
 
 exprInfo :: Expression a -> a
 exprInfo (LitE _ x) = x
 exprInfo (VarE _ x) = x
 exprInfo (CallE _ _ x) = x
 exprInfo (IfE _ _ _ x) = x
-exprInfo (ForE _ _ _ _ _ x) = x
 
 data Statement a b = ExprS (Expression a)
                    | FuncS (FProto b) (Vector (Statement a b)) (Expression a)
@@ -132,10 +149,11 @@ data TypeLiteral = TLBuiltinType BuiltinType
 
 type Kind = ()
 
+builtinType = TTypeLiteral . TLBuiltinType
+
 data BuiltinType = BTInt
                  | BTFloat
                  | BTBool
-                 | BTLambda { btLambdaReturnType :: BuiltinType
-                            , btLambdaArgTypes :: (Vector BuiltinType)
-                            }
-                 deriving (Eq, Ord, Show)
+                 | BTLambda { btLambdaReturnType :: Type
+                            , btLambdaArgTypes :: (Vector Type)
+                            } deriving (Eq, Ord, Show)

@@ -19,16 +19,14 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Tush.Parse
-                     , Tush.Parse.Lex
-                     , Tush.Parse.Syntax
-                     , Tush.Parse.Expr
-                     , Tush.Parse.Statement
-                     , Tush.Typecheck.Typecheck
+  exposed-modules:     Tush.Syntax
+                     , Tush.Syntax.Lex
+                     , Tush.Syntax.Parse
+                     , Tush.Typecheck
                      , Tush.Compile.LLVM.CodeGen
                      , Tush.Compile.LLVM.JIT
                      , Tush.Compile.LLVM.Mangle
-                     , Tush.REPL
+                     , Tush.Repl
                      , Lib
   build-depends:       base
                      , HUnit

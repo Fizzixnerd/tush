@@ -23,7 +23,7 @@ import qualified Data.Map as M
 
 -- import Control.Monad.State
 
-type LocalTypes = M.Map (Var ()) BuiltinType
+type LocalTypes = M.Map (Var ()) Type
 type Typecheck types m a = S.StateT types m a
 type SimpleTypecheck a = Typecheck LocalTypes (C.CatchT Identity) a
 type LocationData = Text
@@ -59,8 +59,8 @@ instance Exception VariableNotFound where
                                              "'.  In location: " ++
                                              show vnfLocation
 
-data TypeMismatch = TypeMismatch { tmExpected :: BuiltinType
-                                 , tmActual :: BuiltinType
+data TypeMismatch = TypeMismatch { tmExpected :: Type
+                                 , tmActual :: Type
                                  , tmLocation :: LocationData }
   deriving (Typeable, Show)
 
@@ -91,73 +91,63 @@ localTypes = S.get
 toText :: Show a => a -> Text
 toText = fromString . show
 
+-- | Reifying named types
+
 -- | Typechecking specific constructs
 
-typecheckCall :: Expression () -> SimpleTypecheck BuiltinType
+untype :: Functor f => f (Maybe Type) -> f ()
+untype = fmap (const ())
+
+typecheckCall :: Expression (Maybe Type) -> SimpleTypecheck Type
 typecheckCall c@(CallE (VarE name _) args _) = do
   lt <- localTypes
-  case M.lookup name lt of
+  case M.lookup (untype name) lt of
     Nothing ->  -- couldn't find the function in the locals
       throwM $ VariableNotFound (varName name) (toText c)
-    Just (BTLambda returnType expectedTypes) -> do
+    Just (TTypeLiteral (TLBuiltinType (BTLambda returnType expectedTypes))) -> do
       actualTypes <- mapM typecheck args
       case find (uncurry (/=)) (zip expectedTypes actualTypes) of
         Nothing -> -- Everything is great, we couldn't find a type inequality!
           return returnType
         Just (et, at) -> throwM $ TypeMismatch et at (toText c)
     Just t -> -- It's not even a lambda...
-      throwM $ TypeMismatch (BTLambda BTInt mempty) t ("YA DONE FUCKED UP AND CALLED A NONFUNCTION FAM. " ++ toText c)
+      throwM $ TypeMismatch (builtinType $ BTLambda (builtinType BTInt) mempty) t ("YA DONE FUCKED UP AND CALLED A NONFUNCTION FAM. " ++ toText c)
       -- FIXME This is just saying Int for the return type, but really it
       -- means it was expecting a function.
 typecheckCall e = throwM $ InternalTypeCheckerError ("typecheckCall was called on non-CallE: `" ++
                                                      toText e ++
                                                      "'.  This is a programming error by the compiler writer.") (toText e)
 
-typecheckIf :: Expression () -> SimpleTypecheck BuiltinType
+typecheckIf :: Expression (Maybe Type) -> SimpleTypecheck Type
 typecheckIf i@(IfE cond conse anted _) = do
   condType <- typecheck cond
   conseType <- typecheck conse
   antedType <- typecheck anted
-  if | condType  /= BTBool -> throwM $ TypeMismatch BTBool condType (toText cond)
+  if | condType  /= (builtinType BTBool) -> throwM $ TypeMismatch (builtinType BTBool) condType (toText cond)
      | conseType /= antedType -> throwM $ TypeMismatch conseType antedType (toText i)
      | otherwise -> return conseType
 typecheckIf e = throwM $ InternalTypeCheckerError ("typecheckIf was called on non-IfE: `" ++
                                                    toText e ++
                                                   "'.  This is a programming error by the compiler writer.") (toText e)
 
-typecheckFor :: Expression () -> SimpleTypecheck BuiltinType
-typecheckFor f@(ForE {..}) = do
-  initT <- typecheck forEInitializer
-  S.withStateT (\s -> M.insert forEVar initT s) $ do
-    termT <- typecheck forETerminator
-    incrT <- typecheck forEIncrementer
-    exprT <- typecheck forEExpression
-    if | termT /= BTBool -> throwM $ TypeMismatch BTBool termT (toText forETerminator)
-       | initT /= incrT  -> throwM $ TypeMismatch initT incrT (toText f)
-       | otherwise -> return exprT
-typecheckFor e = throwM $ InternalTypeCheckerError ("typecheckFor was called on non-ForE: `" ++
-                                                   toText e ++
-                                                   "'.  This is a programming error by the compiler writer.") (toText e)
-
-typecheck :: Expression () -> SimpleTypecheck BuiltinType
-typecheck (LitE (BLit _) _) = return BTBool
-typecheck (LitE (FLit _) _) = return BTFloat
-typecheck (LitE (ILit _) _) = return BTInt
+typecheck :: Expression (Maybe Type) -> SimpleTypecheck Type
+typecheck (LitE (BLit _) _) = return $ builtinType BTBool
+typecheck (LitE (FLit _) _) = return $ builtinType BTFloat
+typecheck (LitE (ILit _) _) = return $ builtinType BTInt
 typecheck ve@(VarE v@(Var name _ _) _) = do
   lt <- localTypes
-  case M.lookup v lt of
+  case M.lookup (untype v) lt of
     Nothing -> throwM $ VariableNotFound name (toText ve)
     Just t -> return t
 typecheck c@(CallE _ _ _) = typecheckCall c
 typecheck i@(IfE _ _ _ _) = typecheckIf i
-typecheck f@(ForE _ _ _ _ _ _) = typecheckFor f
 
--- | Convert Expression () to Expression BuiltinType
+-- | Convert Expression (Maybe Type) Expression BuiltinType
 
-simpleTagE :: Expression () -> SimpleTypecheck (Expression BuiltinType)
-simpleTagE (LitE (BLit x) _) = return $ LitE (BLit x) BTBool
-simpleTagE (LitE (FLit x) _) = return $ LitE (FLit x) BTFloat
-simpleTagE (LitE (ILit x) _) = return $ LitE (ILit x) BTInt
+simpleTagE :: Expression (Maybe Type) -> SimpleTypecheck (Expression Type)
+simpleTagE (LitE (BLit x) _) = return $ LitE (BLit x) (builtinType BTBool)
+simpleTagE (LitE (FLit x) _) = return $ LitE (FLit x) (builtinType BTFloat)
+simpleTagE (LitE (ILit x) _) = return $ LitE (ILit x) (builtinType BTInt)
 simpleTagE v@(VarE (Var name _ op) _) = do
   vType <- typecheck v
   return $ VarE (Var name vType op) vType
@@ -172,24 +162,14 @@ simpleTagE i@(IfE cond conse ante _) = do
   conse' <- simpleTagE conse
   ante' <- simpleTagE ante
   return $ IfE cond' conse' ante' retType
-simpleTagE f@(ForE {..}) = do
-  exprT <- typecheck f
-  initT <- typecheck forEInitializer
-  let var' = forEVar { varInfo = initT }
-  S.withStateT (\s -> M.insert forEVar initT s) $ do
-    init' <- simpleTagE forEInitializer
-    term' <- simpleTagE forETerminator
-    incr' <- simpleTagE forEIncrementer
-    expr' <- simpleTagE forEExpression
-    return $ ForE var' init' term' incr' expr' exprT
 
-simpleTagS :: Statement () BuiltinType -> SimpleTypecheck (Statement BuiltinType BuiltinType)
+simpleTagS :: Statement (Maybe Type) Type -> SimpleTypecheck (Statement Type Type)
 simpleTagS (ExprS e) = do
   e' <- simpleTagE e
   return $ ExprS e'
 simpleTagS (ExternS fp) = do
-  let (nm, ty) = ((fProtoName fp) { varInfo = () }, varInfo $ fProtoName fp)
-  S.modify (M.insert nm ty)
+  let (nm, ty) = ((fProtoName fp) { varType = Nothing }, varType $ fProtoName fp)
+  S.modify (M.insert (untype nm) ty)
   return $ ExternS fp
 simpleTagS (FuncS fp stmnts e) = do
   S.modify (\s -> M.union s $ constructLocalTypesFromFProto fp)
@@ -199,27 +179,27 @@ simpleTagS (FuncS fp stmnts e) = do
   return $ FuncS fp stmnts' e'
 
 defaultEnv :: LocalTypes
-defaultEnv = M.fromList [ (Var "+"  () VClassOperator, BTLambda BTInt (fromList [BTInt, BTInt]))
-                        , (Var "-"  () VClassOperator, BTLambda BTInt (fromList [BTInt, BTInt]))
-                        , (Var "*"  () VClassOperator, BTLambda BTInt (fromList [BTInt, BTInt]))
-                        , (Var "/"  () VClassOperator, BTLambda BTInt (fromList [BTInt, BTInt]))
-                        , (Var "<"  () VClassOperator, BTLambda BTBool (fromList [BTInt, BTInt]))
-                        , (Var ".+" () VClassOperator, BTLambda BTFloat (fromList [BTFloat, BTFloat]))
-                        , (Var ".-" () VClassOperator, BTLambda BTFloat (fromList [BTFloat, BTFloat]))
-                        , (Var ".*" () VClassOperator, BTLambda BTFloat (fromList [BTFloat, BTFloat]))
-                        , (Var "./" () VClassOperator, BTLambda BTFloat (fromList [BTFloat, BTFloat]))
-                        , (Var ".<" () VClassOperator, BTLambda BTBool (fromList [BTFloat, BTFloat])) ]
+defaultEnv = M.fromList [ (Var "+"  () VClassOperator, builtinType $ BTLambda (builtinType BTInt) (fromList [builtinType BTInt, builtinType BTInt]))
+                        , (Var "-"  () VClassOperator, builtinType $ BTLambda (builtinType BTInt) (fromList [builtinType BTInt, builtinType BTInt]))
+                        , (Var "*"  () VClassOperator, builtinType $ BTLambda (builtinType BTInt) (fromList [builtinType BTInt, builtinType BTInt]))
+                        , (Var "/"  () VClassOperator, builtinType $ BTLambda (builtinType BTInt) (fromList [builtinType BTInt, builtinType BTInt]))
+                        , (Var "<"  () VClassOperator, builtinType $ BTLambda (builtinType BTBool) (fromList [builtinType BTInt, builtinType BTInt]))
+                        , (Var ".+" () VClassOperator, builtinType $ BTLambda (builtinType BTFloat) (fromList [builtinType BTFloat, builtinType BTFloat]))
+                        , (Var ".-" () VClassOperator, builtinType $ BTLambda (builtinType BTFloat) (fromList [builtinType BTFloat, builtinType BTFloat]))
+                        , (Var ".*" () VClassOperator, builtinType $ BTLambda (builtinType BTFloat) (fromList [builtinType BTFloat, builtinType BTFloat]))
+                        , (Var "./" () VClassOperator, builtinType $ BTLambda (builtinType BTFloat) (fromList [builtinType BTFloat, builtinType BTFloat]))
+                        , (Var ".<" () VClassOperator, builtinType $ BTLambda (builtinType BTBool) (fromList [builtinType BTFloat, builtinType BTFloat])) ]
 
 -- | LocalTypes Construction
 
-simplyTypedVarToLocalTypePair :: SimplyTypedVar -> (Var (), BuiltinType)
-simplyTypedVarToLocalTypePair stv = (Var (varName stv) () (varClass stv), varInfo stv)
+typedVarToLocalTypePair :: Var Type -> (Var (), Type)
+typedVarToLocalTypePair stv = (Var (varName stv) () (varClass stv), varType stv)
 
-constructLocalTypesFromFProto :: FProto BuiltinType -> LocalTypes
-constructLocalTypesFromFProto (FProto name args) = M.fromList $ (simplyTypedVarToLocalTypePair name) : 
-                                                                toList (simplyTypedVarToLocalTypePair <$> args)
+constructLocalTypesFromFProto :: FProto Type -> LocalTypes
+constructLocalTypesFromFProto (FProto name args) = M.fromList $ (typedVarToLocalTypePair name) : 
+                                                                toList (typedVarToLocalTypePair <$> args)
 
-constructLocalTypesForFuncS :: Statement () BuiltinType -> LocalTypes
+constructLocalTypesForFuncS :: Statement (Maybe Type) Type -> LocalTypes
 constructLocalTypesForFuncS (FuncS fp xs _) = concat $ cons funcLocals $ constructLocalTypes <$> xs
   where
     funcLocals = constructLocalTypesFromFProto fp
@@ -227,12 +207,11 @@ constructLocalTypesForFuncS x = error $ "ERROR: COMPILERERROR: Called `construct
                                 show x ++
                                 "'."
 
-constructLocalTypes :: Statement () BuiltinType -> LocalTypes
+constructLocalTypes :: Statement (Maybe Type) Type -> LocalTypes
 constructLocalTypes (ExprS _) = mempty
 constructLocalTypes (ExternS (FProto name _)) = M.singleton (fst lp) $ snd lp
   where
-    lp = simplyTypedVarToLocalTypePair name
+    lp = typedVarToLocalTypePair name
 constructLocalTypes (FuncS (FProto name _) _ _) = M.singleton (fst lp) $ snd lp
   where
-    lp = simplyTypedVarToLocalTypePair name
-
+    lp = typedVarToLocalTypePair name

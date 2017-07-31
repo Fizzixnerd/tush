@@ -70,13 +70,13 @@ godT = MP.label "God" $ lexeme $ do
              rs <- many $ MP.satisfy (\c -> C.isAlphaNum c || c == '_')
              let result = fromString $ fs : rs
              case lookup result reservedWords of
-               Nothing -> return $ VarT $ Var result (TTypeLiteral TLUntyped) VClassNormal
+               Nothing -> return $ VarT $ Var result Nothing VClassNormal
                Just rw -> return $ ReservedWordT rw
          | otherwise -> do -- Symbol => Op || ReservedOp
              rs <- many $ MP.symbolChar <|> (MP.oneOf ['.', '*', '/', '<', '>', ':'])
              let result = fromString $ fs : rs
              case lookup result reservedOps of
-               Nothing -> return $ VarT $ Var result (TTypeLiteral TLUntyped) VClassOperator
+               Nothing -> return $ VarT $ Var result Nothing VClassOperator
                Just ro -> return $ ReservedOpT ro
 
 literalT :: Parser Token
@@ -89,7 +89,7 @@ literalT =  MP.try (fmap (LiteralT . ILit) $ lexeme L.integer)
 token :: Parser Token
 token =  MP.try commentT
      <|> MP.try literalT
-     <|>        godT
+     <|> godT
 
 tokens :: Parser (Vector Token)
 tokens = fromList <$> (many token)

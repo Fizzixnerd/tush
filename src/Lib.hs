@@ -6,7 +6,7 @@ module Lib where
 
 import ClassyPrelude
 
-import Tush.REPL
+import Tush.Repl
 
 someFunc :: IO ()
 someFunc = repl

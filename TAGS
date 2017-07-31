@@ -9,7 +9,7 @@ module Main Main0,1
 main main4,5
 main main5,6
 
-./src/Tush/Compile/LLVM/CodeGen.hs,4224
+./src/Tush/Compile/LLVM/CodeGen.hs,4278
 module Tush.Compile.LLVM.CodeGen Tush.Compile.LLVM.CodeGen5,6
 type SymbolTable SymbolTable34,35
 type Names Names35,36
@@ -143,32 +143,34 @@ store store305,306
 store store306,307
 load load308,309
 load load309,310
-codeGenTop codeGenTop313,314
-codeGenTop codeGenTop314,315
-varToName varToName339,340
-varToName varToName340,341
-textToSBS textToSBS342,343
-textToSBS textToSBS343,344
-toSig toSig345,346
-toSig toSig346,347
-builtinTypeToType builtinTypeToType348,349
-builtinTypeToType builtinTypeToType349,350
-dispatchBinOp dispatchBinOp354,355
-dispatchBinOp dispatchBinOp355,356
-staticDispatch staticDispatch357,358
-staticDispatch staticDispatch358,359
-false false384,385
-false false385,386
-cgen cgen387,388
-cgen cgen388,389
-zero zero445,446
-zero zero446,447
-phi phi448,449
-phi phi449,450
-liftError liftError451,452
-liftError liftError452,453
-codeGen codeGen454,455
-codeGen codeGen455,456
+lambdaReturnType lambdaReturnType314,315
+lambdaArgTypes lambdaArgTypes316,317
+codeGenTop codeGenTop318,319
+codeGenTop codeGenTop319,320
+varToName varToName344,345
+varToName varToName345,346
+textToSBS textToSBS347,348
+textToSBS textToSBS348,349
+toSig toSig350,351
+toSig toSig351,352
+typeToType typeToType353,354
+typeToType typeToType354,355
+dispatchBinOp dispatchBinOp359,360
+dispatchBinOp dispatchBinOp360,361
+staticDispatch staticDispatch362,363
+staticDispatch staticDispatch363,364
+false false389,390
+false false390,391
+cgen cgen392,393
+cgen cgen393,394
+zero zero450,451
+zero zero451,452
+phi phi453,454
+phi phi454,455
+liftError liftError456,457
+liftError liftError457,458
+codeGen codeGen459,460
+codeGen codeGen460,461
 
 ./src/Tush/Compile/LLVM/JIT.hs,200
 module Tush.Compile.LLVM.JIT Tush.Compile.LLVM.JIT4,5
@@ -244,30 +246,85 @@ term term65,66
 term term66,67
 expr expr75,76
 
-./src/Tush/Syntax/Parse.hs,578
-module Tush.Syntax.Parse Tush.Syntax.Parse18,19
-type TushParseError TushParseError32,33
-type TushParser TushParser34,35
-satisfy satisfy36,37
-satisfy satisfy37,38
-tokenP tokenP45,46
-tokenP tokenP46,47
-varP varP48,49
-varP varP49,50
-typeAsP typeAsP53,54
-typeAsP typeAsP54,55
-typeP typeP58,59
-typeP typeP59,60
-typedVarP typedVarP62,63
-typedVarP typedVarP63,64
-openParenP openParenP69,70
-openParenP openParenP70,71
-commaP commaP74,75
-commaP commaP75,76
-fProtoP fProtoP79,80
-fProtoP fProtoP80,81
-externS externS88,89
-externS externS89,90
+./src/Tush/Syntax/Parse.hs,1982
+module Tush.Syntax.Parse Tush.Syntax.Parse10,11
+type TushParseError TushParseError26,27
+type TushParser TushParser28,29
+instance instance30,31
+parens parens37,38
+satisfy satisfy39,40
+satisfy satisfy40,41
+tokenP tokenP48,49
+tokenP tokenP49,50
+ifP ifP53,54
+ifP ifP54,55
+thenP thenP58,59
+thenP thenP59,60
+elseP elseP63,64
+elseP elseP64,65
+varP varP68,69
+varP varP69,70
+opP opP73,74
+opP opP74,75
+colonP colonP78,79
+colonP colonP79,80
+typeLiteralP typeLiteralP83,84
+typeLiteralP typeLiteralP84,85
+openParenP openParenP88,89
+openParenP openParenP89,90
+closeParenP closeParenP93,94
+closeParenP closeParenP94,95
+equalsP equalsP98,99
+equalsP equalsP99,100
+commaP commaP103,104
+commaP commaP104,105
+semicolonP semicolonP108,109
+semicolonP semicolonP109,110
+literalP literalP113,114
+literalP literalP114,115
+externP externP118,119
+untyped untyped122,123
+untyped untyped123,124
+literalE literalE125,126
+literalE literalE126,127
+varE varE128,129
+varE varE129,130
+opE opE131,132
+opE opE132,133
+varCallE varCallE134,135
+varCallE varCallE135,136
+opCallE opCallE140,141
+opCallE opCallE141,142
+ifE ifE147,148
+ifE ifE148,149
+termE termE157,158
+exprE exprE162,163
+typedVarP typedVarP168,169
+typedVarP typedVarP169,170
+fProtoP fProtoP175,176
+fProtoP fProtoP176,177
+externS externS183,184
+externS externS184,185
+funcS funcS190,191
+funcS funcS191,192
+exprS exprS198,199
+exprS exprS199,200
+statementS statementS204,205
+statementS statementS205,206
+minitest minitest209,210
+minitest minitest210,211
+contents contents212,213
+contents contents213,214
+program program219,220
+program program220,221
+toplevel toplevel225,226
+toplevel toplevel226,227
+lexTopLevel lexTopLevel228,229
+lexTopLevel lexTopLevel229,230
+parseStatement parseStatement231,232
+parseStatement parseStatement232,233
+parseToplevel parseToplevel234,235
+parseToplevel parseToplevel235,236
 
 ./src/Tush/Syntax/Lex.hs,622
 module Tush.Syntax.Lex Tush.Syntax.Lex4,5
@@ -296,14 +353,14 @@ tokens tokens94,95
 
 ./src/Tush/Repl.hs,170
 module Tush.Repl Tush.Repl5,6
-process process18,19
 process process19,20
-initModule initModule34,35
-initModule initModule35,36
-repl repl40,41
-repl repl41,42
+process process20,21
+initModule initModule39,40
+initModule initModule40,41
+repl repl45,46
+repl repl46,47
 
-./src/Tush/Typecheck.hs,2564
+./src/Tush/Typecheck.hs,2516
 module Tush.Typecheck Tush.Typecheck10,11
 type LocalTypes LocalTypes25,26
 type Typecheck Typecheck26,27
@@ -337,134 +394,136 @@ localTypes localTypes87,88
 localTypes localTypes88,89
 toText toText90,91
 toText toText91,92
-typecheckCall typecheckCall95,96
-typecheckCall typecheckCall96,97
-typecheckIf typecheckIf115,116
-typecheckIf typecheckIf116,117
-typecheckFor typecheckFor127,128
-typecheckFor typecheckFor128,129
-typecheck typecheck141,142
-typecheck typecheck142,143
-simpleTagE simpleTagE156,157
-simpleTagE simpleTagE157,158
-simpleTagS simpleTagS185,186
-simpleTagS simpleTagS186,187
-defaultEnv defaultEnv200,201
-defaultEnv defaultEnv201,202
-simplyTypedVarToLocalTypePair simplyTypedVarToLocalTypePair214,215
-simplyTypedVarToLocalTypePair simplyTypedVarToLocalTypePair215,216
-constructLocalTypesFromFProto constructLocalTypesFromFProto217,218
-constructLocalTypesFromFProto constructLocalTypesFromFProto218,219
-constructLocalTypesForFuncS constructLocalTypesForFuncS221,222
-constructLocalTypesForFuncS constructLocalTypesForFuncS222,223
-constructLocalTypes constructLocalTypes229,230
-constructLocalTypes constructLocalTypes230,231
+untype untype97,98
+untype untype98,99
+typecheckCall typecheckCall100,101
+typecheckCall typecheckCall101,102
+typecheckIf typecheckIf120,121
+typecheckIf typecheckIf121,122
+typecheck typecheck132,133
+typecheck typecheck133,134
+simpleTagE simpleTagE146,147
+simpleTagE simpleTagE147,148
+simpleTagS simpleTagS165,166
+simpleTagS simpleTagS166,167
+defaultEnv defaultEnv180,181
+defaultEnv defaultEnv181,182
+typedVarToLocalTypePair typedVarToLocalTypePair194,195
+typedVarToLocalTypePair typedVarToLocalTypePair195,196
+constructLocalTypesFromFProto constructLocalTypesFromFProto197,198
+constructLocalTypesFromFProto constructLocalTypesFromFProto198,199
+constructLocalTypesForFuncS constructLocalTypesForFuncS201,202
+constructLocalTypesForFuncS constructLocalTypesForFuncS202,203
+constructLocalTypes constructLocalTypes209,210
+constructLocalTypes constructLocalTypes210,211
 
-./src/Tush/Syntax.hs,4391
-module Tush.Syntax Tush.Syntax4,5
-data VarClass VarClass10,11
-data VarClass = VClassNormalVClassNormal10,11
-              | VClassOperatorVClassOperator11,12
-              | VClassTypeVClassType12,13
-data Var Var15,16
-data Var a = Var Var15,16
-data Var a = Var { varName varName15,16
-                 , varType varType16,17
-                 , varClass varClass17,18
-type SimplyTypedVar SimplyTypedVar19,20
-data ReservedWord ReservedWord23,24
-data ReservedWord = ForFor23,24
-                  | IfIf24,25
-                  | ThenThen25,26
-                  | ElseElse26,27
-                  | InIn27,28
-                  | LetLet28,29
-                  | DefDef29,30
-                  | ExternExtern30,31
-data ReservedOp ReservedOp33,34
-data ReservedOp = ArrowArrow33,34
-                | EqualsEquals34,35
-data ReservedPunctuation ReservedPunctuation37,38
-data ReservedPunctuation = CommaComma37,38
-                         | SemicolonSemicolon38,39
-                         | ColonColon39,40
-                         | OpenParenOpenParen40,41
-                         | CloseParenCloseParen41,42
-                         | OpenBraceOpenBrace42,43
-                         | CloseBraceCloseBrace43,44
-                         | OpenBracketOpenBracket44,45
-                         | CloseBracketCloseBracket45,46
-data Token Token48,49
-data Token = CommentT CommentT48,49
-           | ReservedWordT ReservedWordT49,50
-           | ReservedOpT ReservedOpT50,51
-           | ReservedPunctuationT ReservedPunctuationT51,52
-           | VarT VarT52,53
-           | TypeVarT TypeVarT53,54
-           | LiteralT LiteralT54,55
-           | TypeLiteralT TypeLiteralT55,56
-isVarT isVarT58,59
-isVarT isVarT59,60
-isOpenParenT isOpenParenT62,63
-isOpenParenT isOpenParenT63,64
-isCommaT isCommaT66,67
-isCommaT isCommaT67,68
-isTypeAsT isTypeAsT70,71
-isTypeAsT isTypeAsT71,72
-data FProto FProto76,77
-data FProto a = FProto FProto76,77
-data FProto a = FProto { fProtoName fProtoName76,77
-                       , fProtoArgs fProtoArgs77,78
-data Literal Literal81,82
-data Literal = ILit ILit81,82
-             | FLit FLit82,83
-             | BLit BLit83,84
-data Expression Expression85,86
-data Expression a = LitE LitE85,86
-data Expression a = LitE { litELiteral litELiteral85,86
-                         , litEInfo litEInfo86,87
-                  | VarE VarE87,88
-                  | VarE { varEVar varEVar87,88
-                         , varEInfo varEInfo88,89
-                  | CallE CallE89,90
-                  | CallE { callEName callEName89,90
-                          , callEArgs callEArgs90,91
-                          , callEInfo callEInfo91,92
-                  | IfE IfE93,94
-                  | IfE { ifEConditional ifEConditional93,94
-                        , ifEConsequent ifEConsequent94,95
-                        , ifEAntecedent ifEAntecedent95,96
-                        , ifEInfo ifEInfo96,97
-                  | ForE ForE98,99
-                  | ForE { forEVar forEVar98,99
-                         , forEInitializer forEInitializer99,100
-                         , forETerminator forETerminator100,101
-                         , forEIncrementer forEIncrementer101,102
-                         , forEExpression forEExpression102,103
-                         , forEInfo forEInfo103,104
-exprInfo exprInfo107,108
-exprInfo exprInfo108,109
-data Statement Statement114,115
-data Statement a b = ExprS ExprS114,115
-                   | FuncS FuncS115,116
-                   | ExternS ExternS116,117
-isExprS isExprS119,120
-isExprS isExprS120,121
-data Type Type123,124
-data Type = TTypeLiteral TTypeLiteral123,124
-          | TVar TVar124,125
-data TypeLiteral TypeLiteral127,128
-data TypeLiteral = TLBuiltinType TLBuiltinType127,128
-                 | TLNamed TLNamed128,129
-                 | TLUntypedTLUntyped129,130
-type Kind Kind132,133
-data BuiltinType BuiltinType134,135
-data BuiltinType = BTIntBTInt134,135
-                 | BTFloatBTFloat135,136
-                 | BTBoolBTBool136,137
-                 | BTLambda BTLambda137,138
-                 | BTLambda { btLambdaReturnType btLambdaReturnType137,138
-                            , btLambdaArgTypes btLambdaArgTypes138,139
+./src/Tush/Syntax.hs,4238
+module Tush.Syntax Tush.Syntax5,6
+data VarClass VarClass11,12
+data VarClass = VClassNormalVClassNormal11,12
+              | VClassOperatorVClassOperator12,13
+              | VClassTypeVClassType13,14
+data Var Var16,17
+data Var a = Var Var16,17
+data Var a = Var { varName varName16,17
+                 , varType varType17,18
+                 , varClass varClass18,19
+isOp isOp21,22
+isOp isOp22,23
+data ReservedWord ReservedWord27,28
+data ReservedWord = ForFor27,28
+                  | IfIf28,29
+                  | ThenThen29,30
+                  | ElseElse30,31
+                  | InIn31,32
+                  | LetLet32,33
+                  | DefDef33,34
+                  | ExternExtern34,35
+data ReservedOp ReservedOp37,38
+data ReservedOp = ArrowArrow37,38
+                | EqualsEquals38,39
+data ReservedPunctuation ReservedPunctuation41,42
+data ReservedPunctuation = CommaComma41,42
+                         | SemicolonSemicolon42,43
+                         | ColonColon43,44
+                         | OpenParenOpenParen44,45
+                         | CloseParenCloseParen45,46
+                         | OpenBraceOpenBrace46,47
+                         | CloseBraceCloseBrace47,48
+                         | OpenBracketOpenBracket48,49
+                         | CloseBracketCloseBracket49,50
+data Token Token52,53
+data Token = CommentT CommentT52,53
+           | ReservedWordT ReservedWordT53,54
+           | ReservedOpT ReservedOpT54,55
+           | ReservedPunctuationT ReservedPunctuationT55,56
+           | VarT VarT56,57
+           | TypeVarT TypeVarT57,58
+           | LiteralT LiteralT58,59
+           | TypeLiteralT TypeLiteralT59,60
+           | EofTEofT60,61
+isVarT isVarT63,64
+isVarT isVarT64,65
+isOpT isOpT67,68
+isOpT isOpT68,69
+isTypeLiteralT isTypeLiteralT71,72
+isTypeLiteralT isTypeLiteralT72,73
+isOpenParenT isOpenParenT75,76
+isOpenParenT isOpenParenT76,77
+isCommaT isCommaT79,80
+isCommaT isCommaT80,81
+isColonT isColonT83,84
+isColonT isColonT84,85
+isLiteralT isLiteralT87,88
+isLiteralT isLiteralT88,89
+data FProto FProto93,94
+data FProto a = FProto FProto93,94
+data FProto a = FProto { fProtoName fProtoName93,94
+                       , fProtoArgs fProtoArgs94,95
+data Literal Literal98,99
+data Literal = ILit ILit98,99
+             | FLit FLit99,100
+             | BLit BLit100,101
+data Expression Expression102,103
+data Expression a = LitE LitE102,103
+data Expression a = LitE { litELiteral litELiteral102,103
+                         , litEInfo litEInfo103,104
+                  | VarE VarE105,106
+                  | VarE { varEVar varEVar105,106
+                         , varEInfo varEInfo106,107
+                  | CallE CallE108,109
+                  | CallE { callEName callEName108,109
+                          , callEArgs callEArgs109,110
+                          , callEInfo callEInfo110,111
+                  | IfE IfE112,113
+                  | IfE { ifEConditional ifEConditional112,113
+                        , ifEConsequent ifEConsequent113,114
+                        , ifEAntecedent ifEAntecedent114,115
+                        , ifEInfo ifEInfo115,116
+exprInfo exprInfo125,126
+exprInfo exprInfo126,127
+data Statement Statement131,132
+data Statement a b = ExprS ExprS131,132
+                   | FuncS FuncS132,133
+                   | ExternS ExternS133,134
+isExprS isExprS136,137
+isExprS isExprS137,138
+data Type Type140,141
+data Type = TTypeLiteral TTypeLiteral140,141
+          | TVar TVar141,142
+data TypeLiteral TypeLiteral144,145
+data TypeLiteral = TLBuiltinType TLBuiltinType144,145
+                 | TLNamed TLNamed145,146
+                 | TLUntypedTLUntyped146,147
+type Kind Kind149,150
+builtinType builtinType151,152
+data BuiltinType BuiltinType153,154
+data BuiltinType = BTIntBTInt153,154
+                 | BTFloatBTFloat154,155
+                 | BTBoolBTBool155,156
+                 | BTLambda BTLambda156,157
+                 | BTLambda { btLambdaReturnType btLambdaReturnType156,157
+                            , btLambdaArgTypes btLambdaArgTypes157,158
 
 ./src/Lib.hs,70
 module Lib Lib4,5
