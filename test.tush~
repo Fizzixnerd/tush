@@ -1,1 +1,0 @@
-extern putchar:Int(c:Int); putchar(42);
