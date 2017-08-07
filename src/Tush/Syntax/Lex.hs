@@ -29,7 +29,7 @@ commentT = CommentT <$> fromString <$> comment
 
 reserved :: String -> a -> Parser a
 reserved r v = lexeme $ do
-  r' <- MP.string r
+  void $ MP.string r
   return v
 
 reservedWords :: Map Text ReservedWord
@@ -65,18 +65,18 @@ godT = MP.label "God" $ lexeme $ do
     Nothing ->
       if | C.isUpper fs -> do -- Uppercase => Type
              rs <- many $ MP.satisfy (\c -> C.isAlphaNum c || c == '_')
-             return $ TypeLiteralT $ TLNamed (fromString $ fs : rs)
+             return $ NamedTypeT $ NamedType (fromString $ fs : rs)
          | C.isAlpha fs -> do -- Lowercase => Var || ReservedWord
              rs <- many $ MP.satisfy (\c -> C.isAlphaNum c || c == '_')
              let result = fromString $ fs : rs
              case lookup result reservedWords of
-               Nothing -> return $ VarT $ Var result Nothing VClassNormal
+               Nothing -> return $ VarT $ Var result () VClassNormal
                Just rw -> return $ ReservedWordT rw
          | otherwise -> do -- Symbol => Op || ReservedOp
              rs <- many $ MP.symbolChar <|> (MP.oneOf ['.', '*', '/', '<', '>', ':'])
              let result = fromString $ fs : rs
              case lookup result reservedOps of
-               Nothing -> return $ VarT $ Var result Nothing VClassOperator
+               Nothing -> return $ VarT $ Var result () VClassOperator
                Just ro -> return $ ReservedOpT ro
 
 literalT :: Parser Token

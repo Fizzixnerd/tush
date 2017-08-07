@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -11,16 +12,16 @@ import ClassyPrelude
 
 data VarClass = VClassNormal
               | VClassOperator
-              | VClassType
+              | VClassTypeFlexible
+              | VClassTypeRigid
   deriving (Eq, Ord, Show)
 
-data Var a = Var { varName :: Text
-                 , varType :: a
-                 , varClass :: VarClass
-                 } deriving (Eq, Ord, Show, Functor)
+data Var = Var { varName :: Text
+               , varClass :: VarClass
+               } deriving (Eq, Ord, Show)
 
-isOp :: Var a -> Bool
-isOp (Var _ _ VClassOperator) = True
+isOp :: Var -> Bool
+isOp (Var _ VClassOperator) = True
 isOp _ = False
 
 -- | Tokens
@@ -54,10 +55,9 @@ data Token = CommentT Text
            | ReservedWordT ReservedWord
            | ReservedOpT ReservedOp
            | ReservedPunctuationT ReservedPunctuation
-           | VarT (Var (Maybe Type))
-           | TypeVarT (Var Kind)
+           | VarT Var
            | LiteralT Literal
-           | TypeLiteralT TypeLiteral
+           | NamedTypeT NamedType
            | EofT
   deriving (Eq, Ord, Show)
 
@@ -69,9 +69,9 @@ isOpT :: Token -> Bool
 isOpT (VarT v) = isOp v
 isOpT _ = False
 
-isTypeLiteralT :: Token -> Bool
-isTypeLiteralT (TypeLiteralT _) = True
-isTypeLiteralT _ = False
+isNamedTypeT :: Token -> Bool
+isNamedTypeT (NamedTypeT _) = True
+isNamedTypeT _ = False
 
 isOpenParenT :: Token -> Bool
 isOpenParenT (ReservedPunctuationT OpenParen) = True
@@ -91,37 +91,29 @@ isLiteralT _ = False
 
 -- | Syntax Tree
 
-data FProto a = FProto { fProtoName :: Var a
-                       , fProtoArgs :: Vector (Var a)
-                       }
-              deriving (Eq, Ord, Show, Functor)
+data FProto a = FProto { fProtoName :: Expression a
+                       , fProtoArgs :: Vector (Expression a)
+                       } deriving (Eq, Ord, Show, Functor, Traversable, Foldable)
 
 data Literal = ILit Integer
              | FLit Double
              | BLit Bool deriving (Eq, Ord, Show)
 
 data Expression a = LitE { litELiteral :: Literal
-                         , litEInfo :: a
+                         , exprType    :: a
                          }
-                  | VarE { varEVar :: (Var a)
-                         , varEInfo ::  a
+                  | VarE { varEVar  :: Var
+                         , exprType :: a
                          }
                   | CallE { callEName :: Expression a
                           , callEArgs :: Vector (Expression a)
-                          , callEInfo :: a
+                          , exprType  :: a
                           }
                   | IfE { ifEConditional :: Expression a
                         , ifEConsequent  :: Expression a
                         , ifEAntecedent  :: Expression a
-                        , ifEInfo        :: a
-                        } deriving (Eq, Ord, Show, Functor)
-                  -- | ForE { forEVar :: Var a
-                  --        , forEInitializer :: Expression a
-                  --        , forETerminator :: Expression a
-                  --        , forEIncrementer :: Expression a
-                  --        , forEExpression :: Expression a
-                  --        , forEInfo :: a
-                  --        }
+                        , exprType       :: a
+                        } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 exprInfo :: Expression a -> a
 exprInfo (LitE _ x) = x
@@ -129,31 +121,65 @@ exprInfo (VarE _ x) = x
 exprInfo (CallE _ _ x) = x
 exprInfo (IfE _ _ _ x) = x
 
-data Statement a b = ExprS (Expression a)
-                   | FuncS (FProto b) (Vector (Statement a b)) (Expression a)
-                   | ExternS (FProto b)
-                   deriving (Eq, Ord, Show)
+data Statement a b = ExprS (Expression b)
+                   | FuncS (FProto b) (Vector (Statement a b)) (Expression b)
+                   | ExternS (FProto a)
+                   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 isExprS :: Statement a b -> Bool
 isExprS (ExprS _) = True
 isExprS _ = False
 
-data Type = TTypeLiteral TypeLiteral
-          | TVar (Var Kind)
-  deriving (Eq, Ord, Show)
+-- | The way types work in tush is like this: You lex then parse the
+-- source, and this code is PreTyped.  It might have type annotations
+-- and stuff, but it's probably mostly not typed yet.  Anything whose
+-- type we don't know is represented by Nothing.  Typechecking
+-- proceeds by giving each of these entities either an explicit type,
+-- a placeholder "named" type, or a type variable.  It also collects
+-- all type definitions to be used during reification (see below).
+-- This whole process is called "pretyping" or just "typing".
+-- 
+-- After all type /definitions/ are known, it is now possible to
+-- replace the named types with their actual types.  This process is
+-- called "reification".
+-- 
+-- For definitions, type variables in final form are okay, but for
+-- expressions it is not.  Therefore, Statement is of kind * -> * ->
+-- *.  The first variable is the type of definitions, which is
+-- isomorphic to Either TypeVar Type, and the second variable is the
+-- type of expressions, which must be Type ~ BuiltinType.  The process
+-- of converting Expressions from Either TypeVar Type to plain Type is
+-- called "specialization".
 
-data TypeLiteral = TLBuiltinType BuiltinType
-                 | TLNamed Text
-                 | TLUntyped
+type TypeVar = Var
+
+newtype NamedType = NamedType { typeName :: Text }
   deriving (Eq, Ord, Show)
 
 type Kind = ()
 
-builtinType = TTypeLiteral . TLBuiltinType
-
 data BuiltinType = BTInt
                  | BTFloat
                  | BTBool
-                 | BTLambda { btLambdaReturnType :: Type
-                            , btLambdaArgTypes :: (Vector Type)
-                            } deriving (Eq, Ord, Show)
+                 deriving (Eq, Ord, Show)
+
+newtype PreType = PreType (Maybe ManifestType) deriving (Eq, Ord, Show)
+newtype ManifestType = ManifestType (Either NamedType AbstractType) deriving (Eq, Ord, Show)
+newtype AbstractType = AbstractType (Either QuantifiedType ConcreteType) deriving (Eq, Ord, Show)
+data Type term sub var = TADT (ADT sub)
+                       | TLambda (Lambda sub)
+                       | TTerm term
+                       | TVar var
+                       deriving (Eq, Ord, Show, Functor)
+data Lambda t = Lambda { lamReturnType :: t
+                       , lamArgTypes :: Vector t
+                       } deriving (Eq, Ord, Show, Functor)
+data ADT t = ADT { adtClass :: ADTClass
+                 , adtTypes :: Vector t
+                 } deriving (Eq, Ord, Show, Functor)
+data ADTClass = Sum | Product deriving (Eq, Ord, Show)
+newtype QuantifiedType = QuantifiedType (Type ConcreteType AbstractType TypeVar) deriving (Eq, Ord, Show)
+newtype ConcreteType = ConcreteType (Type BuiltinType ConcreteType ()) deriving (Eq, Ord, Show)
+
+data TypeConstraint = UnifyWith AbstractType AbstractType deriving (Eq, Ord, Show)
+newtype TypeVarCounter = TypeVarCounter Word deriving (Eq, Ord, Show)

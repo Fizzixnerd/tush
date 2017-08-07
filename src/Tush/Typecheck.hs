@@ -12,6 +12,8 @@ module Tush.Typecheck where
 
 import ClassyPrelude
 
+import Text.Printf
+
 import Data.Typeable
 
 import qualified Control.Monad.State as S
@@ -54,10 +56,7 @@ data VariableNotFound = VariableNotFound { vnfName :: Text
 instance Exception VariableNotFound where
   toException = typeErrorToException
   fromException = typeErrorFromException
-  displayException (VariableNotFound {..}) = "Could not find variable `" ++ 
-                                             show vnfName ++ 
-                                             "'.  In location: " ++
-                                             show vnfLocation
+  displayException (VariableNotFound {..}) = printf "Could not find variable `%v'.  In location: %v" (show vnfName) (show vnfLocation)
 
 data TypeMismatch = TypeMismatch { tmExpected :: Type
                                  , tmActual :: Type
