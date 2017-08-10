@@ -10,17 +10,15 @@ import ClassyPrelude
 
 import Text.Printf
 import Data.Typeable
-
-
 import Control.Monad.State
+import qualified Data.Map as M
 
 import Tush.Syntax
 
-import qualified Data.Map as M
-
 newTypeVar :: TypeVarCounter -> (QuantifiedType, TypeVarCounter)
-newTypeVar (TypeVarCounter x) = ( QuantifiedType $ TVar $ Var (fromString $ printf "a%v" x) VClassTypeFlexible
-                                , TypeVarCounter (x+1))
+newTypeVar (TypeVarCounter x) = ( QuantifiedType $ TVar $ Var (fromString $ printf "__a%v" x) VClassTypeFlexible
+                                , TypeVarCounter (x+1) 
+                                )
 
 -- | Exceptions
 
@@ -201,7 +199,6 @@ constrainTypes (VarE name _) argTypes lamTypes
                     throwM (FunctionMisapplied name argTypes (fmap (AbstractType . Right) (lamArgTypes localTypes)))
                 | otherwise -> 
                     return $ fmap (uncurry unifyWith) (zip argTypes (fmap (AbstractType . Right) (lamArgTypes localTypes)))
-
       return $ baseConstraints <> localConstraints
 
 unifyWith :: AbstractType -> AbstractType -> TypeConstraint

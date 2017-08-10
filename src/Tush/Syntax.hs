@@ -12,15 +12,17 @@ import ClassyPrelude
 
 data VarClass = VClassNormal
               | VClassOperator
-              | VClassTypeFlexible
-              | VClassTypeRigid
   deriving (Eq, Ord, Show)
 
-data Var = Var { varName :: Text
-               , varClass :: VarClass
-               } deriving (Eq, Ord, Show)
+data Var a = Var { varName :: Text
+                 , varClass :: VarClass
+                 } deriving (Eq, Ord, Show)
+data FlexibleV
+data RigidV
+data TypeV
+data ValueV
 
-isOp :: Var -> Bool
+isOp :: Var a -> Bool
 isOp (Var _ VClassOperator) = True
 isOp _ = False
 
@@ -55,9 +57,9 @@ data Token = CommentT Text
            | ReservedWordT ReservedWord
            | ReservedOpT ReservedOp
            | ReservedPunctuationT ReservedPunctuation
-           | VarT Var
+           | VarT (Var ValueV)
+           | TVarT (Var TypeV)
            | LiteralT Literal
-           | NamedTypeT NamedType
            | EofT
   deriving (Eq, Ord, Show)
 
@@ -69,9 +71,9 @@ isOpT :: Token -> Bool
 isOpT (VarT v) = isOp v
 isOpT _ = False
 
-isNamedTypeT :: Token -> Bool
-isNamedTypeT (NamedTypeT _) = True
-isNamedTypeT _ = False
+isTVarT :: Token -> Bool
+isTVarT (TVarT _) = True
+isTVarT _ = False
 
 isOpenParenT :: Token -> Bool
 isOpenParenT (ReservedPunctuationT OpenParen) = True
@@ -102,7 +104,7 @@ data Literal = ILit Integer
 data Expression a = LitE { litELiteral :: Literal
                          , exprType    :: a
                          }
-                  | VarE { varEVar  :: Var
+                  | VarE { varEVar  :: Var ValueV
                          , exprType :: a
                          }
                   | CallE { callEName :: Expression a
@@ -151,11 +153,6 @@ isExprS _ = False
 -- of converting Expressions from Either TypeVar Type to plain Type is
 -- called "specialization".
 
-type TypeVar = Var
-
-newtype NamedType = NamedType { typeName :: Text }
-  deriving (Eq, Ord, Show)
-
 type Kind = ()
 
 data BuiltinType = BTInt
@@ -164,12 +161,12 @@ data BuiltinType = BTInt
                  deriving (Eq, Ord, Show)
 
 newtype PreType = PreType (Maybe ManifestType) deriving (Eq, Ord, Show)
-newtype ManifestType = ManifestType (Either NamedType AbstractType) deriving (Eq, Ord, Show)
+newtype ManifestType = ManifestType (Either (Var TypeV) AbstractType) deriving (Eq, Ord, Show)
 newtype AbstractType = AbstractType (Either QuantifiedType ConcreteType) deriving (Eq, Ord, Show)
-data Type term sub var = TADT (ADT sub)
-                       | TLambda (Lambda sub)
-                       | TTerm term
-                       | TVar var
+data Type term sub var = TyADT (ADT sub)
+                       | TyLambda (Lambda sub)
+                       | TyTerm term
+                       | TyVar var
                        deriving (Eq, Ord, Show, Functor)
 data Lambda t = Lambda { lamReturnType :: t
                        , lamArgTypes :: Vector t
@@ -178,8 +175,8 @@ data ADT t = ADT { adtClass :: ADTClass
                  , adtTypes :: Vector t
                  } deriving (Eq, Ord, Show, Functor)
 data ADTClass = Sum | Product deriving (Eq, Ord, Show)
-newtype QuantifiedType = QuantifiedType (Type ConcreteType AbstractType TypeVar) deriving (Eq, Ord, Show)
-newtype ConcreteType = ConcreteType (Type BuiltinType ConcreteType ()) deriving (Eq, Ord, Show)
+newtype QuantifiedType = QuantifiedType (Type ConcreteType AbstractType (Var FlexibleV)) deriving (Eq, Ord, Show)
+newtype ConcreteType = ConcreteType (Type BuiltinType ConcreteType (Var RigidV)) deriving (Eq, Ord, Show)
 
 data TypeConstraint = UnifyWith AbstractType AbstractType deriving (Eq, Ord, Show)
 newtype TypeVarCounter = TypeVarCounter Word deriving (Eq, Ord, Show)

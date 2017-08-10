@@ -1,6 +1,10 @@
+flags: {}
 extra-package-dbs: []
 apply-ghc-options: locals
 packages:
 - '.'
 extra-deps:
+- FloatingHex-0.4
+- crackNum-1.9
+- sbv-7.1
 resolver: lts-9.0

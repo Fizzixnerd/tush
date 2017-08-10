@@ -31,6 +31,7 @@ library
                      , bytestring
                      , classy-prelude
                      , containers
+                     , equivalence
                      , exceptions
                      , haskeline
                      , hspec
@@ -38,6 +39,7 @@ library
                      , llvm-hs-pure
                      , megaparsec
                      , mtl
+                     , sbv
                      , tasty
                      , tasty-hspec
                      , tasty-hunit
