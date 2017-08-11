@@ -175,8 +175,13 @@ data ADT t = ADT { adtClass :: ADTClass
                  , adtTypes :: Vector t
                  } deriving (Eq, Ord, Show, Functor)
 data ADTClass = Sum | Product deriving (Eq, Ord, Show)
-newtype QuantifiedType = QuantifiedType (Type ConcreteType AbstractType (Var FlexibleV)) deriving (Eq, Ord, Show)
+newtype QuantifiedType = QuantifiedType (Type () AbstractType (Var FlexibleV)) deriving (Eq, Ord, Show)
 newtype ConcreteType = ConcreteType (Type BuiltinType ConcreteType (Var RigidV)) deriving (Eq, Ord, Show)
+
+data Type t = TyADT (Type t)
+            | TyLambda (Type t)
+            | TyBuiltinType BuiltinType
+            | TyVar Var
 
 data TypeConstraint = UnifyWith AbstractType AbstractType deriving (Eq, Ord, Show)
 newtype TypeVarCounter = TypeVarCounter Word deriving (Eq, Ord, Show)

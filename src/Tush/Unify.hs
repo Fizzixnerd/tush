@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
@@ -5,8 +6,7 @@ module Tush.Typecheck.Unify where
 
 import ClassyPrelude
 
-import Data.SBV
-import Data.Map
+import Data.Equivalence.Monad
 
 import Tush.Syntax
 
@@ -83,11 +83,32 @@ import Tush.Syntax
 -- Let's assume yes.  Because that makes the most sense.  Assuming
 -- everything is non-rigid.
 
-
-newtype EquivalenceClass a = EquivalenceClass a ( Map a EquivalenceID
-                                                , Map EquivalenceID (Vector a))
-
 name :: AbstractType -> Text
 name = fromString . show
 
-canSatisfyTypeConstraints :: MonadIO m => Vector TypeConstraint -> m Bool
+isCompatibleWith :: AbstractType -> AbstractType -> Bool
+-- concrete types are only compatible if equal.
+isCompatibleWith (AbstractType (Right x)) (AbstractType (Right y)) = x == y
+isCompatibleWith (AbstractType (Left x)) (AbstractType (Left y)) = x `isQuantifiedCompatibleWith` y
+-- we may now only consider times with the left argument is concrete
+-- and the right type is quantified:
+isCompatibleWith x@(AbstractType (Left _)) y = isCompatibleWith y x
+-- lambdas are not compatible with terminators
+isCompatibleWith (AbstractType (Right (ConcreteType   (TyADT x)))) 
+                 (AbstractType (Left  (QuantifiedType (TyADT y)))) = x `isMixedADTCompatibleWith` y
+                                                                       
+
+isQuantifiedCompatibleWith :: QuantifiedType -> QuantifiedType -> Bool
+isQuantifiedCompatibleWith (QuantifiedType (TyADT x)) (QuantifiedType (TyADT y)) = x `isQuantifiedADTCompatibleWith` y
+isQuantifiedCompatibleWith (QuantifiedType (TyADT x)) (QuantifiedType (TyLambda y)) = False
+isQuantifiedCompatibleWith (QuantifiedType (TyADT x)) (QuantifiedType (TyTerm y)) = False
+isQuantifiedCompatibleWith (QuantifiedType (TyADT x)) (QuantifiedType (TyVar y)) = True
+isQuantifiedCompatibleWith (QuantifiedType (TyLambda x)) (QuantifiedType (TyLambda y)) = x `isLambdaCompatible` y
+isQuantifiedCompatibleWith (QuantifiedType (TyLambda x)) (QuantifiedType (TyTerm y)) = False
+isQuantifiedCompatibleWith (QuantifiedType (TyLambda x)) (QuantifiedType (TyVar y)) = True
+isQuantifiedCompatibleWith (QuantifiedType (TyTerm x)) (QuantifiedType (TyTerm y))
+
+unify :: ( MonadEquiv c AbstractType a m
+         , MonadCatch m ) => 
+         TypeConstraint -> m ()
+unify (UnifyWith x y) = x `equate` y
