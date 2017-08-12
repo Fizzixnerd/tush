@@ -98,6 +98,8 @@ data Literal = ILit Integer
              | BLit Bool 
              deriving (Eq, Ord, Show)
 
+type Env t = Map Var (Expression t)
+
 data Expression t = LitE { litELiteral :: Literal
                          , exprType    :: t
                          }
@@ -115,14 +117,15 @@ data Expression t = LitE { litELiteral :: Literal
                         }
                   | FuncE { funcEArg  :: Var
                           , funcEBody :: Expression t
-                          , funcEEnv  :: Map Var (Expression t)
+                          , funcEEnv  :: Env t
                           , exprType  :: t
-                          } deriving ( Eq
-                                     , Ord
-                                     , Show
-                                     , Functor
-                                     , Foldable
-                                     , Traversable )
+                          }
+  deriving ( Eq
+           , Ord
+           , Show
+           , Functor
+           , Foldable
+           , Traversable )
 
 data Statement a b = ExprS (Expression b)
                    | FuncS (FProto b) (Vector (Statement a b)) (Expression b)
@@ -197,7 +200,8 @@ instance Exception TypeMismatchProblem where
     cast e
   displayException (TypeMismatchProblem {..}) = printf "Could not match types %v for some reason." (show tmpTypes)
 
-data TypeNotDefined = TypeNotDefined { tndType :: Var } deriving (Typeable, Show)
+data TypeNotDefined = TypeNotDefined { tndType :: Var }
+  deriving (Typeable, Show)
 instance Exception TypeNotDefined where
   toException = toException . CompilerError
   fromException x = do
@@ -217,7 +221,8 @@ instance Exception FunctionMisapplied where
     cast e
   displayException (FunctionMisapplied {..}) = printf "Function `%v' was applied to `%v', but expected `%v'." (show fmName) (show fmActualTypes) (show fmExpectedTypes)
 
-data VariableNotDefined = VariableNotDefined { vndVar :: Var } deriving (Typeable, Show)
+data VariableNotDefined = VariableNotDefined { vndVar :: Var }
+  deriving (Typeable, Show)
 instance Exception VariableNotDefined where
   toException = toException . CompilerError
   fromException x = do
@@ -225,7 +230,8 @@ instance Exception VariableNotDefined where
     cast e
   displayException (VariableNotDefined {..}) = printf "The variable `%v' is not defined." (show vndVar)
 
-data BadTypeError = BadTypeError deriving (Typeable, Show)
+data BadTypeError = BadTypeError
+  deriving (Typeable, Show)
 instance Exception BadTypeError where
   toException = toException . CompilerError
   fromException x = do

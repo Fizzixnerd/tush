@@ -16,7 +16,9 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Tush.Syntax
+  exposed-modules:     Tush.Syntax2
+                     , Tush.Function
+                     , Tush.Syntax
                      , Tush.Syntax.Lex
                      , Tush.Syntax.Parse
                      , Tush.Typecheck
