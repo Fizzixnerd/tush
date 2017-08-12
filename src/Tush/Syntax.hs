@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
@@ -6,23 +8,22 @@
 
 module Tush.Syntax where
 
+import Text.Printf
+import Data.Typeable
+
 import ClassyPrelude
 
--- | Tokens
+-- | Vars
 
 data VarClass = VClassNormal
               | VClassOperator
   deriving (Eq, Ord, Show)
 
-data Var a = Var { varName :: Text
-                 , varClass :: VarClass
-                 } deriving (Eq, Ord, Show)
-data FlexibleV
-data RigidV
-data TypeV
-data ValueV
+data Var = Var { varName :: Text
+               , varClass :: VarClass
+               } deriving (Eq, Ord, Show)
 
-isOp :: Var a -> Bool
+isOp :: Var -> Bool
 isOp (Var _ VClassOperator) = True
 isOp _ = False
 
@@ -57,8 +58,7 @@ data Token = CommentT Text
            | ReservedWordT ReservedWord
            | ReservedOpT ReservedOp
            | ReservedPunctuationT ReservedPunctuation
-           | VarT (Var ValueV)
-           | TVarT (Var TypeV)
+           | VarT Var
            | LiteralT Literal
            | EofT
   deriving (Eq, Ord, Show)
@@ -70,10 +70,6 @@ isVarT _ = False
 isOpT :: Token -> Bool
 isOpT (VarT v) = isOp v
 isOpT _ = False
-
-isTVarT :: Token -> Bool
-isTVarT (TVarT _) = True
-isTVarT _ = False
 
 isOpenParenT :: Token -> Bool
 isOpenParenT (ReservedPunctuationT OpenParen) = True
@@ -99,29 +95,34 @@ data FProto a = FProto { fProtoName :: Expression a
 
 data Literal = ILit Integer
              | FLit Double
-             | BLit Bool deriving (Eq, Ord, Show)
+             | BLit Bool 
+             deriving (Eq, Ord, Show)
 
-data Expression a = LitE { litELiteral :: Literal
-                         , exprType    :: a
+data Expression t = LitE { litELiteral :: Literal
+                         , exprType    :: t
                          }
-                  | VarE { varEVar  :: Var ValueV
-                         , exprType :: a
+                  | VarE { varEVar  :: Var
+                         , exprType :: t
                          }
-                  | CallE { callEName :: Expression a
-                          , callEArgs :: Vector (Expression a)
-                          , exprType  :: a
+                  | CallE { callEFunc :: Expression t
+                          , callEArg  :: Expression t
+                          , exprType  :: t
                           }
-                  | IfE { ifEConditional :: Expression a
-                        , ifEConsequent  :: Expression a
-                        , ifEAntecedent  :: Expression a
-                        , exprType       :: a
-                        } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
-
-exprInfo :: Expression a -> a
-exprInfo (LitE _ x) = x
-exprInfo (VarE _ x) = x
-exprInfo (CallE _ _ x) = x
-exprInfo (IfE _ _ _ x) = x
+                  | IfE { ifEConditional :: Expression t
+                        , ifEConsequent  :: Expression t
+                        , ifEAntecedent  :: Expression t
+                        , exprType       :: t
+                        }
+                  | FuncE { funcEArg  :: Var
+                          , funcEBody :: Expression t
+                          , funcEEnv  :: Map Var (Expression t)
+                          , exprType  :: t
+                          } deriving ( Eq
+                                     , Ord
+                                     , Show
+                                     , Functor
+                                     , Foldable
+                                     , Traversable )
 
 data Statement a b = ExprS (Expression b)
                    | FuncS (FProto b) (Vector (Statement a b)) (Expression b)
@@ -160,28 +161,74 @@ data BuiltinType = BTInt
                  | BTBool
                  deriving (Eq, Ord, Show)
 
-newtype PreType = PreType (Maybe ManifestType) deriving (Eq, Ord, Show)
-newtype ManifestType = ManifestType (Either (Var TypeV) AbstractType) deriving (Eq, Ord, Show)
-newtype AbstractType = AbstractType (Either QuantifiedType ConcreteType) deriving (Eq, Ord, Show)
-data Type term sub var = TyADT (ADT sub)
-                       | TyLambda (Lambda sub)
-                       | TyTerm term
-                       | TyVar var
-                       deriving (Eq, Ord, Show, Functor)
+data PreType = PTyManifestType ManifestType | PTyUntyped deriving (Eq, Ord, Show)
+data ManifestType = MTyName Var | MTyType Type deriving (Eq, Ord, Show)
 data Lambda t = Lambda { lamReturnType :: t
-                       , lamArgTypes :: Vector t
+                       , lamArgType :: t
                        } deriving (Eq, Ord, Show, Functor)
 data ADT t = ADT { adtClass :: ADTClass
                  , adtTypes :: Vector t
+                 , adtName  :: Name
                  } deriving (Eq, Ord, Show, Functor)
+type Name = Text
 data ADTClass = Sum | Product deriving (Eq, Ord, Show)
-newtype QuantifiedType = QuantifiedType (Type () AbstractType (Var FlexibleV)) deriving (Eq, Ord, Show)
-newtype ConcreteType = ConcreteType (Type BuiltinType ConcreteType (Var RigidV)) deriving (Eq, Ord, Show)
+data Type = TyADT (ADT Type)
+          | TyLambda (Lambda Type)
+          | TyBuiltinType BuiltinType
+          | TyVar Var
+          | TyBadType
+          deriving (Eq, Ord, Show)
 
-data Type t = TyADT (Type t)
-            | TyLambda (Type t)
-            | TyBuiltinType BuiltinType
-            | TyVar Var
-
-data TypeConstraint = UnifyWith AbstractType AbstractType deriving (Eq, Ord, Show)
+data TypeConstraint = UnifyWith Type Type deriving (Eq, Ord, Show)
 newtype TypeVarCounter = TypeVarCounter Word deriving (Eq, Ord, Show)
+
+-- | Exceptions
+
+data CompilerError = forall e . Exception e => CompilerError e deriving Typeable
+instance Exception CompilerError
+instance Show CompilerError where show (CompilerError e) = displayException e
+
+data TypeMismatchProblem = TypeMismatchProblem { tmpTypes :: Vector Type } 
+  deriving (Typeable, Show)
+instance Exception TypeMismatchProblem where
+  toException = toException . CompilerError
+  fromException x = do
+    CompilerError e <- fromException x
+    cast e
+  displayException (TypeMismatchProblem {..}) = printf "Could not match types %v for some reason." (show tmpTypes)
+
+data TypeNotDefined = TypeNotDefined { tndType :: Var } deriving (Typeable, Show)
+instance Exception TypeNotDefined where
+  toException = toException . CompilerError
+  fromException x = do
+    CompilerError e <- fromException x
+    cast e
+  displayException (TypeNotDefined {..}) = printf "Type type `%v' is not defined." (show tndType)
+
+
+data FunctionMisapplied = FunctionMisapplied { fmName :: Var
+                                             , fmActualTypes :: Vector Type
+                                             , fmExpectedTypes :: Vector Type
+                                             } deriving (Typeable, Show)
+instance Exception FunctionMisapplied where
+  toException = toException . CompilerError
+  fromException x = do
+    CompilerError e <- fromException x
+    cast e
+  displayException (FunctionMisapplied {..}) = printf "Function `%v' was applied to `%v', but expected `%v'." (show fmName) (show fmActualTypes) (show fmExpectedTypes)
+
+data VariableNotDefined = VariableNotDefined { vndVar :: Var } deriving (Typeable, Show)
+instance Exception VariableNotDefined where
+  toException = toException . CompilerError
+  fromException x = do
+    CompilerError e <- fromException x
+    cast e
+  displayException (VariableNotDefined {..}) = printf "The variable `%v' is not defined." (show vndVar)
+
+data BadTypeError = BadTypeError deriving (Typeable, Show)
+instance Exception BadTypeError where
+  toException = toException . CompilerError
+  fromException x = do
+    CompilerError e <- fromException x
+    cast e
+  displayException BadTypeError = printf "Y'all fucked up.  Bad Type Error."
