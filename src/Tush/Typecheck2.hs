@@ -10,12 +10,13 @@ import ClassyPrelude
 
 import Text.Printf
 
+import Control.Lens
 import Control.Monad.State
 import qualified Data.Map as M
 
 import Tush.Syntax
 
-newTypeVar :: TypeVarCounter -> ( Type, TypeVarCounter)
+newTypeVar :: TypeVarCounter -> ( Type' a, TypeVarCounter)
 newTypeVar (TypeVarCounter x) = ( TyVar $ Var (fromString $ printf "__a%v" x) VClassNormal
                                 , TypeVarCounter (x+1) 
                                 )
@@ -47,11 +48,11 @@ manifestE (LitE l t) = do
 manifestE (VarE v t) = do
   t' <- manifestT t
   return $ VarE v t'
-manifestE (CallE n a t) = do
+manifestE (AppE n a t) = do
   n' <- manifestE n
   a' <- manifestE a
   t' <- manifestT t
-  return $ CallE n' a' t'
+  return $ AppE n' a' t'
 manifestE (IfE i th el t) = do
   i' <- manifestE i
   th' <- manifestE th
@@ -61,7 +62,7 @@ manifestE (IfE i th el t) = do
 
 manifestT :: (MonadState TypeCheckerState m, MonadThrow m) => 
              PreType -> m ManifestType
-manifestT (PTyManifestType x) = return x
+manifestT (PTyMType x) = return x
 manifestT PTyUntyped = do
   tvc <- gets typeVarCounter
   let (tv, tvc') = newTypeVar tvc
@@ -70,10 +71,10 @@ manifestT PTyUntyped = do
 
 manifestFP :: (MonadState TypeCheckerState m, MonadThrow m) => 
               FProto PreType -> m (FProto ManifestType)
-manifestFP (FProto n as) = do
+manifestFP (FProto n a) = do
   n' <- manifestE n
-  as' <- mapM manifestE as
-  return $ FProto n' as'
+  a' <- manifestE a
+  return $ FProto n' a'
 
 reify' :: (MonadState TypeCheckerState m, MonadThrow m) =>
           Statement ManifestType ManifestType -> m (Statement Type ManifestType)
@@ -92,9 +93,17 @@ reify :: (MonadState TypeCheckerState m, MonadThrow m) =>
          Statement ManifestType ManifestType -> m (Statement Type Type)
 reify s = join $ fmap (mapM reifyT) $ (reify' s)
 
+reifyT' :: (MonadState TypeCheckerState m, MonadThrow m) =>
+           Type' ManifestType -> m (Type' Type)
+reifyT' (TyADT x) = TyADT <$> (mapM reifyT x)
+reifyT' (TyLambda x) = TyLambda <$> (mapM reifyT x)
+reifyT' (TyBuiltinType x) = return $ TyBuiltinType x
+reifyT' (TyVar x) = return $ TyVar x
+reifyT' TyBadType = return $ TyBadType
+
 reifyT :: (MonadState TypeCheckerState m, MonadThrow m) => 
           ManifestType -> m Type
-reifyT (MTyType t) = return t
+reifyT (MTyType t) = Type <$> reifyT' t
 reifyT (MTyName n) = do
   td <- gets typeDict
   case lookup n td of
@@ -118,25 +127,18 @@ constrain :: (MonadState TypeCheckerState m, MonadThrow m) =>
              Expression Type -> m (Vector TypeConstraint)
 constrain (LitE _ _) = return empty
 constrain (VarE _ _) = return empty
-constrain (CallE fn arg t) =
--- constrain :: (MonadState TypeCheckerState m, MonadThrow m) =>
---              Expression Type -> m (Vector TypeConstraint)
--- constrain (LitE _ _) = return empty
--- constrain (VarE _ _) = return empty
--- constrain (CallE name args t) = 
---   let types = exprType <$> args in
---     case t of
---       AbstractType (Left (QuantifiedType (TLambda (Lambda {..})))) ->
---         constrainTypes name types lamArgTypes
---       AbstractType (Right (ConcreteType (TLambda (Lambda {..})))) ->
---         constrainTypes name types (AbstractType <$> Right <$> lamArgTypes)
---       _ -> throwM (TypeMismatchProblems types)
--- constrain (IfE i th el t) =
---   let ic =(exprType i) `unifyWith` (AbstractType $ Right $ ConcreteType $ TTerm BTBool)
---       thc = (exprType th) `unifyWith` (exprType el)
---       tc = t `unifyWith` (exprType th)
---       tc' = t `unifyWith` (exprType el) in
---   return $ fromList [ic, thc, tc, tc']
+constrain (AppE fn arg t) = 
+  let type' = arg^.exprType in
+    case t of
+      Type (TyLambda (Lambda {..})) ->
+        constrainTypes fn type' lamArgType
+      _ -> throwM (TypeMismatchProblem type')
+constrain (IfE i th el t) =
+  let ic = (i^.exprType) `unifyWith` (Type (TyBuiltinType BTBool))
+      thc = (th^.exprType) `unifyWith` (th^.exprType)
+      tc = t `unifyWith` (th^.exprType)
+      tc' = t `unifyWith` (el^.exprType) in
+    return $ fromList [ic, thc, tc, tc']
 
 -- constrainTypes :: (MonadState TypeCheckerState m, MonadThrow m) => 
 --                   Expression AbstractType 

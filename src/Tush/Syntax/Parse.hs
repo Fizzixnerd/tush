@@ -14,6 +14,7 @@ import ClassyPrelude as CP
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
+import qualified Data.Map as M
 
 import qualified Text.Megaparsec as MP
 import Text.Megaparsec.Text
@@ -31,7 +32,7 @@ type TushParser = Parsec MP.Dec (Vector S.Token)
 instance Ord s => Stream (Vector s) where
   type Token (Vector s) = s
   uncons = CP.uncons
-  updatePos ps p sp t = (sp, sp { sourceColumn = unsafePos $ (unPos $ sourceColumn sp) + 1 })
+  updatePos _ _ sp _ = (sp, sp { sourceColumn = unsafePos $ (unPos $ sourceColumn sp) + 1 })
 
 -- | Combinators
 
@@ -67,12 +68,12 @@ elseP = do
   (S.ReservedWordT e) <- tokenP $ S.ReservedWordT S.Else
   return e
 
-varP :: TushParser (S.Var S.PreType)
+varP :: TushParser S.Var
 varP = do
   (S.VarT v) <- satisfy (\x -> S.isVarT x && (not $ S.isOpT x))
   return v
 
-opP :: TushParser (S.Var S.PreType)
+opP :: TushParser S.Var
 opP = do
   (S.VarT o) <- satisfy (\x -> S.isVarT x && S.isOpT x)
   return o
@@ -82,10 +83,12 @@ colonP = do
   (S.ReservedPunctuationT ta) <- satisfy S.isColonT
   return ta
 
-namedTypeP :: TushParser S.NamedType
+namedTypeP :: TushParser S.ManifestType
 namedTypeP = do
-  (S.NamedTypeT tl) <- satisfy S.isNamedTypeT 
-  return tl
+  (S.VarT v) <- satisfy isNamedTypeT 
+  return $ S.MTyName v
+  where isNamedTypeT (S.VarT (S.Var _ S.VClassType)) = True
+        isNamedTypeT _ = False
 
 openParenP :: TushParser S.ReservedPunctuation
 openParenP = do
@@ -102,6 +105,11 @@ equalsP = do
   (S.ReservedOpT e) <- tokenP (S.ReservedOpT S.Equals)
   return e
 
+arrowP :: TushParser S.ReservedOp
+arrowP = do
+  (S.ReservedOpT a) <- tokenP (S.ReservedOpT S.Arrow)
+  return a
+
 commaP :: TushParser S.ReservedPunctuation
 commaP = do
   (S.ReservedPunctuationT c) <- satisfy S.isCommaT
@@ -110,19 +118,25 @@ commaP = do
 semicolonP :: TushParser S.ReservedPunctuation
 semicolonP = do
   (S.ReservedPunctuationT sc) <- tokenP (S.ReservedPunctuationT S.Semicolon)
-  return $ sc
+  return sc
+
+backslashP :: TushParser S.ReservedPunctuation
+backslashP = do
+  (S.ReservedPunctuationT bs) <- tokenP (S.ReservedPunctuationT S.Backslash)
+  return bs
 
 literalP :: TushParser S.Literal
 literalP = do
   (S.LiteralT l) <- satisfy S.isLiteralT
   return l
 
+externP :: TushParser S.Token
 externP = tokenP (S.ReservedWordT S.Extern)
 
 -- | Expressions
 
 untyped :: S.PreType
-untyped = Nothing
+untyped = S.PTyUntyped
 
 literalE :: TushParser (S.Expression S.PreType)
 literalE = flip S.LitE untyped <$> literalP
@@ -133,18 +147,18 @@ varE = flip S.VarE untyped <$> varP
 opE :: TushParser (S.Expression S.PreType)
 opE = flip S.VarE untyped <$> opP
 
-varCallE :: TushParser (S.Expression S.PreType)
-varCallE = do
-  name <- varE
-  args <- some termE
-  return $ S.CallE name (fromList args) untyped
+varAppE :: TushParser (S.Expression S.PreType)
+varAppE = do
+  name <- termE
+  arg <- termE
+  return $ S.AppE name arg untyped
 
-opCallE :: TushParser (S.Expression S.PreType)
-opCallE = do
+opAppE :: TushParser (S.Expression S.PreType)
+opAppE = do
   l <- termE
   name <- opE
   r <- termE
-  return $ S.CallE name (fromList [l, r]) untyped
+  return $ S.AppE (S.AppE name r untyped) l untyped
 
 ifE :: TushParser (S.Expression S.PreType)
 ifE = do
@@ -156,42 +170,61 @@ ifE = do
   anted <- exprE
   return $ S.IfE cond conse anted untyped
 
+lamE :: TushParser (S.Expression S.PreType)
+lamE = do
+  void $ backslashP
+  arg <- varP
+  void $ arrowP
+  body <- exprE
+  return $ S.LamE arg body M.empty S.PTyUntyped
+
 termE :: TushParser (S.Expression S.PreType)
 termE =  MP.try literalE
-     <|> MP.try varCallE
      <|> MP.try varE
      <|> parens exprE
 
 exprE :: TushParser (S.Expression S.PreType)
-exprE =  MP.try opCallE
+exprE =  MP.try opAppE
      <|> MP.try ifE
+     <|> MP.try lamE
+     <|> MP.try varAppE
      <|>        termE
 
 -- | Function Prototypes
 
-typedVarP :: TushParser (S.Var S.ManifestType)
-typedVarP = do
+possiblyTypedVarP :: TushParser (S.Expression S.PreType)
+possiblyTypedVarP = do
   v <- varP
   void $ colonP
-  tl <- typeLiteralP
-  return $ v { S.varType = S.NamedType tl }
-  
-fProtoP :: TushParser (S.FProto S.Type)
+  nt <- optional namedTypeP
+  let nt' = maybe S.PTyUntyped S.PTyMType nt
+  return $ S.VarE { S._varEVar = v
+                  , S._exprType = nt'
+                  }
+
+fProtoP :: TushParser (S.FProto S.PreType)
 fProtoP = do
-  (S.Var name type' op) <- typedVarP
-  args <- fromList <$> many typedVarP
-  return $ S.FProto (S.Var name (S.builtinType (S.BTLambda type' ((\(S.Var _ t _) -> t) <$> args))) op) args
+  (S.VarE (S.Var retName rop) retType) <- possiblyTypedVarP
+  (S.VarE (S.Var argName aop) argType) <- possiblyTypedVarP
+  return $ S.FProto { S._fProtoName = 
+                      S.VarE (S.Var retName rop) 
+                      (S.PTyType (S.TyLambda 
+                                   (S.Lambda { S._lamReturnType = retType
+                                             , S._lamArgType = argType
+                                             })))
+                    , S._fProtoArg = S.VarE (S.Var argName aop) argType
+                    }
 
 -- | Statements
 
-externS :: TushParser (S.Statement S.PreType S.Type)
+externS :: TushParser (S.Statement S.PreType S.PreType)
 externS = do
   void $ externP
   fp <- fProtoP
   void $ semicolonP
   return $ S.ExternS fp
 
-funcS :: TushParser (S.Statement S.PreType S.Type)
+funcS :: TushParser (S.Statement S.PreType S.PreType)
 funcS = do
   fp <- fProtoP
   void $ equalsP
@@ -199,18 +232,18 @@ funcS = do
   void $ semicolonP
   return $ S.FuncS fp mempty e
 
-exprS :: TushParser (S.Statement S.PreType S.Type)
+exprS :: TushParser (S.Statement S.PreType S.PreType)
 exprS = do
   e <- exprE
   void semicolonP
   return $ S.ExprS e
 
-statementS :: TushParser (S.Statement S.PreType S.Type)
+statementS :: TushParser (S.Statement S.PreType S.PreType)
 statementS =  MP.try externS
           <|> MP.try funcS
           <|>        exprS
 
-minitest :: Either TushParseError (S.Statement S.PreType S.Type)
+minitest :: Either TushParseError (S.Statement S.PreType S.PreType)
 minitest = MP.runParser (program statementS) "<tokens>" $ (\(Just x) -> x) $ MP.parseMaybe L.tokens "f : Int x : Int = 2 * x;"
 
 contents :: Parser a -> Parser a
@@ -219,21 +252,35 @@ contents p = do
   r <- p
   eof
   return r
-  
+
 program :: TushParser a -> TushParser a
 program p = do
   r <- p
   eof
   return r
 
-toplevel :: TushParser (Vector (S.Statement S.PreType S.Type))
+toplevel :: TushParser (Vector (S.Statement S.PreType S.PreType))
 toplevel = fromList <$> many statementS
 
 lexTopLevel :: Text -> Either (MP.ParseError Char MP.Dec) (Vector S.Token)
 lexTopLevel t = MP.runParser (contents L.tokens) "<stdin>" t
 
-parseStatement :: Vector S.Token -> Either TushParseError (S.Statement S.PreType S.Type)
+parseStatement :: Vector S.Token -> Either TushParseError (S.Statement S.PreType S.PreType)
 parseStatement s = MP.runParser (program statementS) "<tokens>" s
 
-parseToplevel :: Vector S.Token -> Either TushParseError (Vector (S.Statement S.PreType S.Type))
-parseToplevel s = MP.runParser (program toplevel) "<tokens>" s
+parseTopLevel :: Vector S.Token -> Either TushParseError (Vector (S.Statement S.PreType S.PreType))
+parseTopLevel s = MP.runParser (program toplevel) "<tokens>" s
+
+lexabunch :: Either (MP.ParseError Char MP.Dec) [Vector S.Token]
+lexabunch = forM [ "\\x -> x;"
+                 , "(\\x -> x) 3;"
+                 , "f x;"
+                 , "(f x) y;"
+                 , "x + y;"
+                 , "extern putchar : Int x : Int;"
+                 , "" ] lexTopLevel
+
+parseabunch :: Either TushParseError ([Vector (S.Statement S.PreType S.PreType)])
+parseabunch = case lexabunch of
+  Right x -> forM x parseTopLevel
+  _ -> error "SUCK A DICK"

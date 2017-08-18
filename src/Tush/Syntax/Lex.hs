@@ -50,7 +50,8 @@ reservedPunctuation = M.fromList [ (',', Comma)
                                  , ('{', OpenBrace)
                                  , ('}', CloseBrace)
                                  , ('[', OpenBracket)
-                                 , (']', CloseBracket) ] 
+                                 , (']', CloseBracket)
+                                 , ('\\', Backslash) ] 
 
 reservedOps :: Map Text ReservedOp
 reservedOps = M.fromList [ ("->", Arrow)
@@ -63,20 +64,20 @@ godT = MP.label "God" $ lexeme $ do
   case lookup fs reservedPunctuation of -- Are we a punctuation character?
     Just p -> return $ ReservedPunctuationT p
     Nothing ->
-      if | C.isUpper fs -> do -- Uppercase => Type
+      if | C.isUpper fs -> do -- Uppercase => Type || DataConstructor
              rs <- many $ MP.satisfy (\c -> C.isAlphaNum c || c == '_')
-             return $ NamedTypeT $ NamedType (fromString $ fs : rs)
+             return $ VarT $ Var (fromString $ fs : rs) VClassType
          | C.isAlpha fs -> do -- Lowercase => Var || ReservedWord
              rs <- many $ MP.satisfy (\c -> C.isAlphaNum c || c == '_')
              let result = fromString $ fs : rs
              case lookup result reservedWords of
-               Nothing -> return $ VarT $ Var result () VClassNormal
+               Nothing -> return $ VarT $ Var result VClassNormal
                Just rw -> return $ ReservedWordT rw
          | otherwise -> do -- Symbol => Op || ReservedOp
-             rs <- many $ MP.symbolChar <|> (MP.oneOf ['.', '*', '/', '<', '>', ':'])
+             rs <- many $ MP.symbolChar <|> (MP.oneOf ['.', '*', '/', '<', '>', ':', '\\'])
              let result = fromString $ fs : rs
              case lookup result reservedOps of
-               Nothing -> return $ VarT $ Var result () VClassOperator
+               Nothing -> return $ VarT $ Var result VClassOperator
                Just ro -> return $ ReservedOpT ro
 
 literalT :: Parser Token

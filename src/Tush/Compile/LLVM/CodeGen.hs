@@ -40,7 +40,7 @@ data CodeGenState = CodeGenState {
   , blocks :: Map Name BlockState
   , symtab :: SymbolTable
   , blockCount :: Int
-  , count :: Word
+  , unnameGen :: Word
   , names :: Names
   } deriving Show
 
@@ -343,7 +343,7 @@ codeGenTop (S.ExprS e) = do
       cgen e >>= ret
 
 varToName :: S.Var a -> Name
-varToName (S.Var name _ _) = Name $ textToSBS $ mangle name -- FIXED mangling issue
+varToName (S.Var name _ _) = Name $ textToSBS $ mangle name
 
 textToSBS :: Text -> BSS.ShortByteString
 textToSBS = fromString . BS.unpack . TE.encodeUtf8
