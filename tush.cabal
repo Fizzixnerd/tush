@@ -16,7 +16,8 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Tush.Compile.LLVM.Types
+  exposed-modules:     Tush.Illuminate
+                     , Tush.Compile.LLVM.Types
                      , Tush.Compile.LLVM.Instructions
                      , Tush.Expression
                      , Tush.Compile.LLVM.CodeGen2
@@ -54,6 +55,7 @@ library
                      , vector
                      , uniplate
                      , lens
+                     , ghci-pretty
   c-sources:           cbits/io.c
   cc-options:         -Wall -fPIC
   ghc-options:        -Wall

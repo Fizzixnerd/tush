@@ -1,8 +1,12 @@
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Tush.Typecheck2 where
 
@@ -11,36 +15,82 @@ import ClassyPrelude
 import Text.Printf
 
 import Control.Lens
-import Control.Monad.State
+import Control.Monad.State (MonadState, StateT, runStateT, gets, put, modify)
+import Control.Monad.Except
+import Data.Equivalence.Monad
+import Data.Equivalence.STT
 import qualified Data.Map as M
+import Data.Maybe
+import qualified Data.List as L
 
 import Tush.Syntax
+import Tush.Unify
+import Tush.Syntax.Parse
 
 newTypeVar :: TypeVarCounter -> ( Type' a, TypeVarCounter)
 newTypeVar (TypeVarCounter x) = ( TyVar $ Var (fromString $ printf "__a%v" x) VClassNormal
-                                , TypeVarCounter (x+1) 
-                                )
+                                , TypeVarCounter (x+1) )
 
-data TypeCheckerState = TypeCheckerState { contraints :: Vector TypeConstraint
-                                         , typeDict :: Map Var Type
-                                         , typeVarCounter :: TypeVarCounter
-                                         , locals :: Map Var Type
+
+data TypeCheckerState = TypeCheckerState { _constraints :: Vector TypeConstraint
+                                         , _typeVarCounter :: TypeVarCounter
+                                         , _locals :: Map Var Type
                                          } deriving (Eq, Ord, Show)
+
+makeLenses ''TypeCheckerState
+
+type TypeChecker a = forall s . 
+                     (ExceptT SomeException
+                       (StateT TypeCheckerState 
+                         (EquivT s Type Type Identity))) a
+
+prelude = M.fromList [ (Var "Int" VClassType, Type $ TyBuiltinType BTInt)
+                     , (Var "Float" VClassType, Type $ TyBuiltinType BTFloat)
+                     , (Var "Bool" VClassType, Type $ TyBuiltinType BTBool)
+                     , (Var "+" VClassOperator, Type $ TyLambda $ Lambda (Type $ TyLambda $ Lambda (Type $ TyBuiltinType BTInt) (Type $ TyBuiltinType BTInt)) (Type $ TyBuiltinType BTInt))]
+
+runTypeChecker :: TypeChecker a -> Either SomeException a
+runTypeChecker x = runIdentity $
+                   (runEquivT id compatibleType) $ (fmap fst) <$>
+                   (\y -> runStateT y (TypeCheckerState
+                                        empty 
+                                        (TypeVarCounter 0) 
+                                        prelude)) $
+                   runExceptT $ x
+
+manifestabunch = case parseabunch of
+                   Right x -> (\y -> runTypeChecker $ forM y manifest) <$> x
+                   x -> error (show x)
+
+reifyabunch = do
+  x <- manifestabunch
+  case x of
+    Right y -> return $ runTypeChecker $ mapM reify y
+    z -> error $ show z
+
+unifyabunch = case parseabunch of
+  Right x -> (\y -> runTypeChecker $ forM y (manifest >=> reify >=> (\x -> do
+                                                                        buildLocals x
+                                                                        constrain x
+                                                                        return x) >=> Tush.Typecheck2.unify)) <$> x
+  x -> error (show x)
 
 -- | The way we manifest a type is if it is typed we pass it through,
 -- but if it isn't typed we tag it with a free flexible type variable.
 -- We also build a dictionary of user types.
-manifest :: (MonadState TypeCheckerState m, MonadThrow m) =>
-            Statement ManifestType PreType -> m (Statement ManifestType ManifestType)
+manifest :: (MonadState TypeCheckerState m) =>
+            Statement PreType PreType -> m (Statement ManifestType ManifestType)
 manifest (ExprS e) = ExprS <$> manifestE e
 manifest (FuncS fp stmnts e) = do
   fp' <- manifestFP fp
   stmnts' <- mapM manifest stmnts
   e' <- manifestE e
   return $ FuncS fp' stmnts' e'
-manifest (ExternS fp) = return $ (ExternS fp)
+manifest (ExternS fp) = do
+  fp' <- manifestFP fp
+  return $ (ExternS fp')
 
-manifestE :: (MonadState TypeCheckerState m, MonadThrow m) => 
+manifestE :: (MonadState TypeCheckerState m) => 
              Expression PreType -> m (Expression ManifestType)
 manifestE (LitE l t) = do
   t' <- manifestT t
@@ -53,6 +103,11 @@ manifestE (AppE n a t) = do
   a' <- manifestE a
   t' <- manifestT t
   return $ AppE n' a' t'
+manifestE (LamE v b t) = do
+  v' <- manifestE v
+  b' <- manifestE b
+  t' <- manifestTLambda t
+  return $ LamE v' b' t'
 manifestE (IfE i th el t) = do
   i' <- manifestE i
   th' <- manifestE th
@@ -60,23 +115,44 @@ manifestE (IfE i th el t) = do
   t' <- manifestT t
   return $ IfE i' th' el' t'
 
-manifestT :: (MonadState TypeCheckerState m, MonadThrow m) => 
+manifestT :: (MonadState TypeCheckerState m) => 
              PreType -> m ManifestType
 manifestT (PTyMType x) = return x
 manifestT PTyUntyped = do
-  tvc <- gets typeVarCounter
+  tvc <- gets $ view typeVarCounter
   let (tv, tvc') = newTypeVar tvc
-  modify (\s -> s { typeVarCounter = tvc' })
+  modify (\s -> s { _typeVarCounter = tvc' })
   return $ MTyType tv
+manifestT (PTyType (TyADT (ADT c ts n))) = do
+  ts' <- mapM manifestT ts
+  return $ MTyType (TyADT (ADT c ts' n))
+manifestT (PTyType (TyLambda (Lambda r a))) = do
+  r' <- manifestT r
+  a' <- manifestT a
+  return $ MTyType (TyLambda (Lambda r' a'))
+manifestT (PTyType (TyBuiltinType b)) = return $ MTyType (TyBuiltinType b)
+manifestT (PTyType (TyVar v)) = return $ MTyType (TyVar v)
+manifestT (PTyType TyBadType) = return $ MTyType TyBadType
 
-manifestFP :: (MonadState TypeCheckerState m, MonadThrow m) => 
+manifestTLambda :: MonadState TypeCheckerState m =>
+                   PreType -> m ManifestType
+manifestTLambda PTyUntyped = do
+  tvc <- gets $ view typeVarCounter
+  let (argT, tvc') = newTypeVar tvc
+      (retT, tvc'') = newTypeVar tvc'
+  typeVarCounter .= tvc''
+  return $ MTyType $ TyLambda $ Lambda (MTyType retT) (MTyType argT)
+manifestTLambda x = manifestT x
+
+manifestFP :: (MonadState TypeCheckerState m) => 
               FProto PreType -> m (FProto ManifestType)
 manifestFP (FProto n a) = do
   n' <- manifestE n
   a' <- manifestE a
   return $ FProto n' a'
 
-reify' :: (MonadState TypeCheckerState m, MonadThrow m) =>
+reify' :: ( MonadState TypeCheckerState m
+          , MonadError SomeException m) =>
           Statement ManifestType ManifestType -> m (Statement Type ManifestType)
 reify' (ExternS fp) = do
   fp' <- mapM reifyT fp
@@ -89,11 +165,13 @@ reify' (FuncS fp ss e) = do
 -- | We then take a second pass and associate to all NamedTypes their
 -- actual type implementation, or "reify" them.  Errors can be thrown
 -- if a type is not in scope at this point.
-reify :: (MonadState TypeCheckerState m, MonadThrow m) =>
+reify :: ( MonadState TypeCheckerState m
+         , MonadError SomeException m) =>
          Statement ManifestType ManifestType -> m (Statement Type Type)
 reify s = join $ fmap (mapM reifyT) $ (reify' s)
 
-reifyT' :: (MonadState TypeCheckerState m, MonadThrow m) =>
+reifyT' :: ( MonadState TypeCheckerState m
+           , MonadError SomeException m) =>
            Type' ManifestType -> m (Type' Type)
 reifyT' (TyADT x) = TyADT <$> (mapM reifyT x)
 reifyT' (TyLambda x) = TyLambda <$> (mapM reifyT x)
@@ -101,69 +179,87 @@ reifyT' (TyBuiltinType x) = return $ TyBuiltinType x
 reifyT' (TyVar x) = return $ TyVar x
 reifyT' TyBadType = return $ TyBadType
 
-reifyT :: (MonadState TypeCheckerState m, MonadThrow m) => 
+reifyT :: (MonadState TypeCheckerState m, MonadError SomeException m) => 
           ManifestType -> m Type
 reifyT (MTyType t) = Type <$> reifyT' t
 reifyT (MTyName n) = do
-  td <- gets typeDict
-  case lookup n td of
-    Nothing -> throwM (TypeNotDefined n)
+  ls <- gets $ view locals
+  case lookup n ls of
+    Nothing -> throwError $ toException $ TypeNotDefined n
     Just x  -> return x
 
-buildLocals :: (MonadState TypeCheckerState m, MonadThrow m) => 
+buildLocals :: (MonadState TypeCheckerState m) => 
                Statement Type Type -> m ()
+-- FIXME: need to build locals from AppE's and LamE's.
 buildLocals (ExprS _) = return ()
 buildLocals (FuncS fp _ _) = buildLocalsFromFProto fp
 buildLocals (ExternS fp) = buildLocalsFromFProto fp
 
-buildLocalsFromFProto :: (MonadState TypeCheckerState m, MonadThrow m) => 
+buildLocalsFromFProto :: (MonadState TypeCheckerState m) => 
                          FProto Type -> m ()
 buildLocalsFromFProto (FProto (VarE name t) _) = do
-  ls <- gets locals
-  modify (\s -> s { locals = M.insert name t ls })
+  ls <- gets $ view locals
+  modify (\s -> s { _locals = M.insert name t ls })
   return ()
 
-constrain :: (MonadState TypeCheckerState m, MonadThrow m) =>
-             Expression Type -> m (Vector TypeConstraint)
-constrain (LitE _ _) = return empty
-constrain (VarE _ _) = return empty
-constrain (AppE fn arg t) = 
-  let type' = arg^.exprType in
-    case t of
-      Type (TyLambda (Lambda {..})) ->
-        constrainTypes fn type' lamArgType
-      _ -> throwM (TypeMismatchProblem type')
-constrain (IfE i th el t) =
-  let ic = (i^.exprType) `unifyWith` (Type (TyBuiltinType BTBool))
-      thc = (th^.exprType) `unifyWith` (th^.exprType)
-      tc = t `unifyWith` (th^.exprType)
-      tc' = t `unifyWith` (el^.exprType) in
-    return $ fromList [ic, thc, tc, tc']
+constrain :: (MonadState TypeCheckerState m) =>
+             Statement Type Type -> m ()
+constrain (ExprS e) = constrainE e
+-- FIXME: Probably wrong to do nothing
+constrain _ = return ()
 
--- constrainTypes :: (MonadState TypeCheckerState m, MonadThrow m) => 
---                   Expression AbstractType 
---                -> Vector AbstractType 
---                -> Vector AbstractType 
---                -> m (Vector TypeConstraint)
--- constrainTypes (VarE name _) argTypes lamTypes 
---   | length argTypes /= length lamTypes = throwM (FunctionMisapplied name argTypes lamTypes)
---   | otherwise = do
---       let baseConstraints = fmap (uncurry unifyWith) (zip argTypes lamTypes)
---       ls <- gets locals
---       localConstraints <- 
---             case lookup name ls of
---               Nothing -> throwM (VariableNotDefined name)
---               Just (AbstractType (Left (QuantifiedType (TLambda localTypes))))
---                 | length (lamArgTypes localTypes) /= length argTypes -> 
---                     throwM (FunctionMisapplied name argTypes (lamArgTypes localTypes))
---                 | otherwise -> 
---                     return $ fmap (uncurry unifyWith) (zip argTypes (lamArgTypes localTypes))
---               Just (AbstractType (Right (ConcreteType (TLambda localTypes))))
---                 | length (lamArgTypes localTypes) /= length argTypes -> 
---                     throwM (FunctionMisapplied name argTypes (fmap (AbstractType . Right) (lamArgTypes localTypes)))
---                 | otherwise -> 
---                     return $ fmap (uncurry unifyWith) (zip argTypes (fmap (AbstractType . Right) (lamArgTypes localTypes)))
---       return $ baseConstraints <> localConstraints
+constrainE :: (MonadState TypeCheckerState m) =>
+             Expression Type -> m ()
+constrainE (LitE value t) = do
+  let literalConstraint = case value of
+                            ILit _ -> (Type $ TyBuiltinType BTInt) `unifyWith` t
+                            FLit _ -> (Type $ TyBuiltinType BTFloat) `unifyWith` t
+                            BLit _ -> (Type $ TyBuiltinType BTBool) `unifyWith` t
+  constraints <>= (singleton literalConstraint)
+constrainE (VarE name t) = do
+  ls <- gets $ view locals
+  let localsConstraint = (ls^.at name.to (maybe t id)) `unifyWith` t
+  constraints <>= (singleton localsConstraint)
+constrainE (AppE fn arg t) = do
+  ls <- gets $ view locals
+  let localsConstraints = case fn of
+                            VarE name t' -> 
+                              fromList [
+                              (ls^.at name.to (maybe (mkLam t (arg^.exprType)) id))
+                              `unifyWith`
+                              (mkLam t (arg^.exprType)),
+                              t' `unifyWith` (ls^.at name.to (maybe (mkLam t (arg^.exprType)) id)),
+                              t' `unifyWith` (mkLam t (arg^.exprType))]
+
+                            _ -> empty
+      functionConstraint = singleton $ 
+                           (fn^.exprType)
+                           `unifyWith`
+                           (mkLam t (arg^.exprType))
+      constraints' = localsConstraints <> functionConstraint
+  constraints <>= constraints'
+  constrainE fn
+  constrainE arg
+  where
+    mkLam x y = Type $ TyLambda $ Lambda x y
+constrainE (IfE i th el t) = do
+  let ic = (i^.exprType) `unifyWith` (Type (TyBuiltinType BTBool))
+      thc = (th^.exprType) `unifyWith` (el^.exprType)
+      tc = t `unifyWith` (th^.exprType)
+      tc' = t `unifyWith` (el^.exprType)
+  constraints <>= (fromList $ [ic, thc, tc, tc'])
+  constrainE i
+  constrainE th
+  constrainE el
+-- FIXME: Probably want to involve the type t somehow...
+-- FIXED
+constrainE (LamE arg body t) = do
+  let Type (TyLambda (Lambda ret arg')) = t
+      returnConstraint = singleton $ ret `unifyWith` (body^.exprType)
+      argConstraint = singleton $ arg' `unifyWith` (arg^.exprType)
+  constraints <>= returnConstraint <> argConstraint
+  constrainE arg
+  constrainE body
 
 unifyWith :: Type -> Type -> TypeConstraint
 unifyWith = UnifyWith
@@ -171,8 +267,28 @@ unifyWith = UnifyWith
 -- | Next we take all the flexible type variables and see if we can
 -- consistently unify them.  This involves identifying each type to
 -- unify and doing so one at a time.
-unify :: Monad m => Type -> m Type
-unify = error "unify: Unimplemented"
+unify :: ( MonadState TypeCheckerState m
+         , MonadEquiv (Class s Type Type) Type Type m 
+         , MonadError SomeException m) =>
+         Statement Type Type -> m (Statement Type Type)
+unify s = do
+  let allTypes = getAllTypes s
+  cs <- gets $ view constraints
+  ClassyPrelude.mapM_ Tush.Unify.unify cs
+  restTypes <- getRestrictedTypes allTypes
+  let typeMap = M.fromList $ toList (zip allTypes restTypes)
+  return $ replaceTypes typeMap s
+
+-- FIXME: Partial
+getAllTypes :: Statement Type Type -> Vector Type
+getAllTypes (ExprS e) = fromList $ L.foldl' (\acc x -> x:acc) empty e
+getAllTypes _ = empty
+
+replaceTypes :: Map Type Type -> Statement Type Type -> Statement Type Type
+replaceTypes tm (ExprS e) = ExprS $ runIdentity $ traverse (pure . replaceType tm) e
+replaceTypes _ s = s
+
+replaceType tm t = fromJust $ lookup t tm
 
 -- | Finally, we specialize every expression on their actual type.
 -- And we are done!  (Is this not part of unification?)

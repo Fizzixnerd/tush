@@ -14,7 +14,6 @@ import ClassyPrelude as CP
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
-import qualified Data.Map as M
 
 import qualified Text.Megaparsec as MP
 import Text.Megaparsec.Text
@@ -173,10 +172,10 @@ ifE = do
 lamE :: TushParser (S.Expression S.PreType)
 lamE = do
   void $ backslashP
-  arg <- varP
+  arg <- exprE
   void $ arrowP
   body <- exprE
-  return $ S.LamE arg body M.empty S.PTyUntyped
+  return $ S.LamE arg body S.PTyUntyped
 
 termE :: TushParser (S.Expression S.PreType)
 termE =  MP.try literalE

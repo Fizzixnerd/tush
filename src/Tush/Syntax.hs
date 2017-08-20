@@ -103,7 +103,7 @@ data Literal = ILit Integer
              | BLit Bool 
              deriving (Eq, Ord, Show, Data, Typeable)
 
-type Env t = Map Var (Expression t)
+--type Env t = Map Var (Expression t)
 
 data Expression t = LitE { _litELiteral :: Literal
                          , _exprType    :: t
@@ -120,9 +120,8 @@ data Expression t = LitE { _litELiteral :: Literal
                          , _ifEAntecedent  :: Expression t
                          , _exprType       :: t
                          }
-                  | LamE { _lamEArg  :: Var
+                  | LamE { _lamEArg  :: Expression t
                          , _lamEBody :: Expression t
-                         , _lamEEnv  :: Env t
                          , _exprType :: t
                          }
   deriving ( Eq
@@ -152,7 +151,14 @@ makeLenses ''FProto
 data Statement a b = ExprS (Expression b)
                    | FuncS (FProto b) (Vector (Statement a b)) (Expression b)
                    | ExternS (FProto a)
-                   deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Data, Typeable)
+                   deriving ( Eq
+                            , Ord
+                            , Show
+                            , Functor
+                            , Foldable
+                            , Traversable
+                            , Data
+                            , Typeable )
 
 isExprS :: Statement a b -> Bool
 isExprS (ExprS _) = True
@@ -197,13 +203,27 @@ data PreType = PTyType (Type' PreType)
 
 data Lambda t = Lambda { _lamReturnType :: t
                        , _lamArgType :: t
-                       } deriving (Eq, Ord, Show, Functor, Typeable, Data, Traversable, Foldable)
+                       } deriving ( Eq
+                                  , Ord
+                                  , Show
+                                  , Functor
+                                  , Typeable
+                                  , Data
+                                  , Traversable
+                                  , Foldable )
 
 data ADTClass = Sum | Product deriving (Eq, Ord, Show, Typeable, Data)
 data ADT t = ADT { _adtClass :: ADTClass
                  , _adtTypes :: Vector t
                  , _adtName  :: Var
-                 } deriving (Eq, Ord, Show, Functor, Typeable, Data, Traversable, Foldable)
+                 } deriving ( Eq
+                            , Ord
+                            , Show
+                            , Functor
+                            , Typeable
+                            , Data
+                            , Traversable
+                            , Foldable )
 
 data Type' t = TyADT (ADT t)
              | TyLambda (Lambda t)

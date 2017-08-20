@@ -3,27 +3,28 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Tush.Typecheck.Unify where
+module Tush.Unify where
 
 import ClassyPrelude hiding (throwM)
 
-import Data.Equivalence.Monad
-import Control.Monad.Catch.Pure
+import Data.Equivalence.Monad as M
+import Data.Equivalence.STT
+import Control.Monad.Except
 
 import Tush.Syntax
 
 isCompatibleWith :: Type -> Type -> Bool
-isCompatibleWith (TyADT x) (TyADT y) = x == y
-isCompatibleWith (TyADT _) (TyLambda _) = False
-isCompatibleWith (TyADT _) (TyBuiltinType _) = False
-isCompatibleWith (TyADT _) (TyVar _) = True
-isCompatibleWith (TyLambda x) (TyLambda y) = x `isLambdaCompatibleWith` y
-isCompatibleWith (TyLambda _) (TyBuiltinType _) = False
-isCompatibleWith (TyLambda _) (TyVar _) = True
-isCompatibleWith (TyBuiltinType x) (TyBuiltinType y) = x == y
-isCompatibleWith (TyBuiltinType _) (TyVar _) = True
-isCompatibleWith (TyVar _) (TyVar _) = True
-isCompatibleWith TyBadType _ = False
+isCompatibleWith (Type (TyADT x)) (Type (TyADT y)) = x == y
+isCompatibleWith (Type (TyADT _)) (Type (TyLambda _)) = False
+isCompatibleWith (Type (TyADT _)) (Type (TyBuiltinType _)) = False
+isCompatibleWith (Type (TyADT _)) (Type (TyVar _)) = True
+isCompatibleWith (Type (TyLambda x)) (Type (TyLambda y)) = x `isLambdaCompatibleWith` y
+isCompatibleWith (Type (TyLambda _)) (Type (TyBuiltinType _)) = False
+isCompatibleWith (Type (TyLambda _)) (Type (TyVar _)) = True
+isCompatibleWith (Type (TyBuiltinType x)) (Type (TyBuiltinType y)) = x == y
+isCompatibleWith (Type (TyBuiltinType _)) (Type (TyVar _)) = True
+isCompatibleWith (Type (TyVar _)) (Type (TyVar _)) = True
+isCompatibleWith (Type TyBadType) _ = False
 -- Symmetric relation
 isCompatibleWith x y = y `isCompatibleWith` x
 
@@ -34,53 +35,47 @@ isLambdaCompatibleWith (Lambda xret xarg) (Lambda yret yarg) =
 compatibleType :: Type -> Type -> Type
 compatibleType x y | x `isCompatibleWith` y = 
                        case (x, y) of
-                         (x'@(TyADT _), TyADT _) -> x'
-                         (x'@(TyADT _), TyVar _) -> x'
-                         (TyLambda x', TyLambda y') -> TyLambda $ compatibleLambda x' y'
-                         (x'@(TyLambda _), TyVar _) -> x'
-                         (x'@(TyBuiltinType _), TyBuiltinType _) -> x'
-                         (x'@(TyBuiltinType _), TyVar _) -> x'
-                         (x'@(TyVar _), TyVar _) -> x'
+                         (x'@(Type (TyADT _)), Type (TyADT _)) -> x'
+                         (x'@(Type (TyADT _)), Type (TyVar _)) -> x'
+                         (Type (TyLambda x'), Type (TyLambda y')) -> 
+                           Type $ TyLambda $ compatibleLambda x' y'
+                         (x'@(Type (TyLambda _)), Type (TyVar _)) -> x'
+                         (x'@(Type (TyBuiltinType _)), Type (TyBuiltinType _)) -> x'
+                         (x'@(Type (TyBuiltinType _)), Type (TyVar _)) -> x'
+                         (x'@(Type (TyVar _)), Type (TyVar _)) -> x'
                          (x', y') -> compatibleType y' x'
-                   | otherwise = TyBadType
+                   | otherwise = Type TyBadType
 
 compatibleLambda :: Lambda Type -> Lambda Type -> Lambda Type
 compatibleLambda (Lambda xret xarg) (Lambda yret yarg) = let
   lrt = compatibleType xret yret
   lat = compatibleType xarg yarg in
-  Lambda { lamReturnType = lrt
-         , lamArgType    = lat
+  Lambda { _lamReturnType = lrt
+         , _lamArgType    = lat
          }
 
-unify' :: ( MonadEquiv c Type a m
-          , MonadThrow m ) => 
+unify' :: ( MonadEquiv (Class s Type Type) Type a m ) =>
           TypeConstraint -> m ()
-unify' (UnifyWith TyBadType _) = throwM BadTypeError
-unify' (UnifyWith _ TyBadType) = throwM BadTypeError
-unify' (UnifyWith x y) = x `equate` y
+unify' (UnifyWith (Type TyBadType) _) = error $ show $ BadTypeError
+unify' (UnifyWith _ (Type TyBadType)) = error $ show $ BadTypeError
+unify' (UnifyWith x y) = x `M.equate` y
 
-unify :: ( MonadEquiv (Vector Type) Type Type m
-         , MonadThrow m ) =>
+unify :: ( MonadEquiv (Class s Type Type) Type Type m, MonadError SomeException m ) =>
          TypeConstraint -> m ()
 unify (UnifyWith x y) = do
   -- if these guys are incompatible, then we are fucked either way.
   unless (x `isCompatibleWith` y) $
-    throwM $ TypeMismatchProblem (fromList [x, y])
+    throwError $ toException $ TypeMismatchProblem x
   -- next try to unify their descriptors
-  xdesc <- classDesc x
-  ydesc <- classDesc y
+  xdesc <- M.classDesc x
+  ydesc <- M.classDesc y
   unless (xdesc `isCompatibleWith` ydesc) $
     -- The equivalence classes can't unify because of other
     -- constraints
-    throwM $ TypeMismatchProblem (fromList [x, y])
+    throwError $ toException $ TypeMismatchProblem x
   -- These guys can be unified, so do it!
   unify' (UnifyWith x y)
 
-getRestrictedTypes :: MonadEquiv (Vector Type) Type Type m =>
+getRestrictedTypes :: MonadEquiv s Type Type m =>
                       Vector Type -> m (Vector Type)
-getRestrictedTypes ts = mapM classDesc ts
-
-runTypechecker :: Monad m =>
-                  (forall s. EquivT s Type Type m a)
-               -> m a
-runTypechecker = runEquivT id compatibleType
+getRestrictedTypes ts = mapM M.classDesc ts
