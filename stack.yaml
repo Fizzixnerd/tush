@@ -9,6 +9,7 @@ extra-deps:
 - bzlib-0.5.0.5
 - crackNum-1.9
 - ghci-pretty-0.0.2
+- hat-2.7.0.12
 - ipprint-0.6
 - sbv-7.1
 - sr-extra-1.46.3.2

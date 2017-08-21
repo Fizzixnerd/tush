@@ -26,6 +26,7 @@ import qualified Data.List as L
 import Tush.Syntax
 import Tush.Unify
 import Tush.Syntax.Parse
+import Tush.Illuminate
 
 newTypeVar :: TypeVarCounter -> ( Type' a, TypeVarCounter)
 newTypeVar (TypeVarCounter x) = ( TyVar $ Var (fromString $ printf "__a%v" x) VClassNormal
@@ -51,7 +52,7 @@ prelude = M.fromList [ (Var "Int" VClassType, Type $ TyBuiltinType BTInt)
 
 runTypeChecker :: TypeChecker a -> Either SomeException a
 runTypeChecker x = runIdentity $
-                   (runEquivT id compatibleType) $ (fmap fst) <$>
+                   (runEquivT id merge) $ (fmap fst) <$>
                    (\y -> runStateT y (TypeCheckerState
                                         empty 
                                         (TypeVarCounter 0) 
@@ -69,10 +70,11 @@ reifyabunch = do
     z -> error $ show z
 
 unifyabunch = case parseabunch of
-  Right x -> (\y -> runTypeChecker $ forM y (manifest >=> reify >=> (\x -> do
-                                                                        buildLocals x
-                                                                        constrain x
-                                                                        return x) >=> Tush.Typecheck2.unify)) <$> x
+  Right x -> (\y -> runTypeChecker $ forM y (manifest >=> reify >=> (\z -> do
+                                                                        buildLocals z
+                                                                        constrain z
+                                                                        return z) >=> Tush.Typecheck2.unify)) <$>
+              ((\y -> runIllumination $ forM y illuminateS) <$> x)
   x -> error (show x)
 
 -- | The way we manifest a type is if it is typed we pass it through,
@@ -202,13 +204,13 @@ buildLocalsFromFProto (FProto (VarE name t) _) = do
   modify (\s -> s { _locals = M.insert name t ls })
   return ()
 
-constrain :: (MonadState TypeCheckerState m) =>
+constrain :: (MonadState TypeCheckerState m, MonadError SomeException m) =>
              Statement Type Type -> m ()
 constrain (ExprS e) = constrainE e
 -- FIXME: Probably wrong to do nothing
 constrain _ = return ()
 
-constrainE :: (MonadState TypeCheckerState m) =>
+constrainE :: (MonadState TypeCheckerState m, MonadError SomeException m) =>
              Expression Type -> m ()
 constrainE (LitE value t) = do
   let literalConstraint = case value of
@@ -222,17 +224,25 @@ constrainE (VarE name t) = do
   constraints <>= (singleton localsConstraint)
 constrainE (AppE fn arg t) = do
   ls <- gets $ view locals
-  let localsConstraints = case fn of
-                            VarE name t' -> 
-                              fromList [
-                              (ls^.at name.to (maybe (mkLam t (arg^.exprType)) id))
-                              `unifyWith`
-                              (mkLam t (arg^.exprType)),
-                              t' `unifyWith` (ls^.at name.to (maybe (mkLam t (arg^.exprType)) id)),
-                              t' `unifyWith` (mkLam t (arg^.exprType))]
-
-                            _ -> empty
-      functionConstraint = singleton $ 
+  localsConstraints <- case fn of
+                         VarE name t' -> 
+                           return $ fromList [
+                           (ls^.at name.to (maybe (mkLam t (arg^.exprType)) id))
+                           `unifyWith`
+                           (mkLam t (arg^.exprType)),
+                           t' `unifyWith` (ls^.at name.to (maybe (mkLam t (arg^.exprType)) id)),
+                           t' `unifyWith` (mkLam t (arg^.exprType))
+                           ]
+                         LamE arg' body t' ->
+                           return $ fromList [
+                           t `unifyWith` (body^.exprType)
+                           ]
+                         AppE fn' arg' t' ->
+                           return $ fromList [
+                           (fn'^.exprType) `unifyWith` (mkLam (mkLam t (arg^.exprType)) (arg'^.exprType))
+                           ]
+                         _ -> return empty
+  let functionConstraint = singleton $ 
                            (fn^.exprType)
                            `unifyWith`
                            (mkLam t (arg^.exprType))
@@ -247,7 +257,7 @@ constrainE (IfE i th el t) = do
       thc = (th^.exprType) `unifyWith` (el^.exprType)
       tc = t `unifyWith` (th^.exprType)
       tc' = t `unifyWith` (el^.exprType)
-  constraints <>= (fromList $ [ic, thc, tc, tc'])
+  constraints <>= fromList [ic, thc, tc, tc']
   constrainE i
   constrainE th
   constrainE el
@@ -257,7 +267,11 @@ constrainE (LamE arg body t) = do
   let Type (TyLambda (Lambda ret arg')) = t
       returnConstraint = singleton $ ret `unifyWith` (body^.exprType)
       argConstraint = singleton $ arg' `unifyWith` (arg^.exprType)
-  constraints <>= returnConstraint <> argConstraint
+      recursiveConstraint = let argInstances = 
+                                  [x | x@(VarE v _) <- universe body, v == (arg^.to _varEVar)]
+                            in
+                              fromList $ (\x -> (x^.exprType) `unifyWith` (arg^.exprType)) <$> argInstances
+  constraints <>= returnConstraint <> argConstraint <> recursiveConstraint
   constrainE arg
   constrainE body
 
@@ -288,6 +302,7 @@ replaceTypes :: Map Type Type -> Statement Type Type -> Statement Type Type
 replaceTypes tm (ExprS e) = ExprS $ runIdentity $ traverse (pure . replaceType tm) e
 replaceTypes _ s = s
 
+replaceType :: Map Type Type -> Type -> Type
 replaceType tm t = fromJust $ lookup t tm
 
 -- | Finally, we specialize every expression on their actual type.

@@ -15,6 +15,7 @@ import Control.Lens
 import Text.Printf
 import Data.Typeable
 import Data.Data
+import Data.Data.Lens (uniplate)
 
 import ClassyPrelude
 
@@ -133,6 +134,9 @@ data Expression t = LitE { _litELiteral :: Literal
            , Typeable
            , Data )
 
+instance Data t => Plated (Expression t) where
+  plate = uniplate
+
 makeLenses ''Expression
 
 data FProto t = FProto { _fProtoName :: Expression t
@@ -232,7 +236,13 @@ data Type' t = TyADT (ADT t)
              | TyBadType
              deriving (Eq, Ord, Show, Typeable, Data)
 
+instance Data t => Plated (Type' t) where
+  plate = uniplate
+
 data Type = Type (Type' Type) deriving (Eq, Ord, Show, Typeable, Data)
+
+instance Plated Type where
+  plate = uniplate
 
 makeLenses ''Lambda
 makeLenses ''ADT
