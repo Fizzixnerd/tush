@@ -17,6 +17,7 @@ module Tush.Compile.LLVM.Types where
 
 import ClassyPrelude
 
+import Control.Monad.Except
 import Control.Monad.State
 
 import Control.Lens
@@ -28,7 +29,7 @@ import qualified Tush.Syntax as S
 import qualified Data.ByteString.Short as BSS
 import Data.Maybe
 
-type ModuleName = Text
+type ModuleName = BSS.ShortByteString
 type UnnameGen = Word
 type NameTable = Map BSS.ShortByteString Int
 data ModuleState = ModuleState { _currentFunction :: Name
@@ -36,7 +37,7 @@ data ModuleState = ModuleState { _currentFunction :: Name
                                , _unnameGen :: UnnameGen
                                , _functionCount :: Int
                                , _functionNameTable :: NameTable
-                               , _module_ :: A.Module
+                               , _definitions :: Vector Definition
                                } deriving (Eq, Show)
 
 data FunctionState = FunctionState { _currentBlock :: Name
@@ -62,10 +63,16 @@ makeLenses ''ModuleState
 makeLenses ''BlockState
 makeLenses ''LlvmState
 
+newtype Program = Program { unprogram :: Vector A.Module }
+  deriving (Eq, Show)
+
 newtype LlvmT m a = LlvmT { runLlvmT :: StateT LlvmState m a }
   deriving (Functor, Applicative, Monad, MonadState LlvmState)
 
-type Llvm a = LlvmT Identity a
+type Llvm a = (ExceptT UnreachableError (LlvmT Identity)) a
+
+data UnreachableError = UnreachableError deriving (Eq, Ord, Show)
+instance Exception UnreachableError
 
 int :: A.Type
 int = IntegerType 64
@@ -85,16 +92,17 @@ btToType S.BTFloat = float
 btToType S.BTBool  = bool_
 
 typeToType :: S.Type -> A.Type
-typeToType (S.TyADT adt@(S.ADT S.Product _ _)) = StructureType {
+typeToType (S.Type (S.TyADT adt@(S.ADT S.Product _ _))) = StructureType {
     isPacked = True
   , elementTypes = typeToType <$> (adt^.S.adtTypes.to toList)
   }
-typeToType (S.TyLambda lam) = FunctionType {
+typeToType (S.Type (S.TyLambda lam)) = FunctionType {
     resultType = lam^.S.lamReturnType.to typeToType
   , argumentTypes = [lam^.S.lamArgType.to typeToType]
   , isVarArg = False
   }
-typeToType (S.TyBuiltinType bt) = btToType bt
+typeToType (S.Type (S.TyBuiltinType bt)) = btToType bt
+typeToType (S.Type (S.TyVar v)) = error "Unreachable"
 
 localRef :: Type -> Name -> Operand
 localRef = LocalReference
@@ -102,8 +110,7 @@ localRef = LocalReference
 unname :: UnnameGen -> Name
 unname u = UnName u
 
-freshUnname :: ( MonadState LlvmState m
-               , MonadThrow m ) =>
+freshUnname :: ( MonadState LlvmState m ) =>
                m Name
 freshUnname = do
   mn <- gets $ view currentModule

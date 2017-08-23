@@ -271,13 +271,14 @@ parseTopLevel :: Vector S.Token -> Either TushParseError (Vector (S.Statement S.
 parseTopLevel s = MP.runParser (program toplevel) "<tokens>" s
 
 lexabunch :: Either (MP.ParseError Char MP.Dec) [Vector S.Token]
-lexabunch = forM [ "\\x -> x;"
-                 , "(\\x -> x) 3;"
-                 , "f x;"
-                 , "(f x) y;"
-                 , "x + y;"
-                 , "extern putchar : Int x : Int;"
-                 , "" ] lexTopLevel
+lexabunch = forM [-- "\\x -> x;"
+                 "(\\x -> x) 3;"
+--                 , "f x;"
+--                 , "(f x) y;"
+                 , "3 + 4;"
+--                 , "extern putchar : Int x : Int;"
+--                 , "" 
+                 ] lexTopLevel
 
 parseabunch :: Either TushParseError ([Vector (S.Statement S.PreType S.PreType)])
 parseabunch = case lexabunch of

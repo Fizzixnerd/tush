@@ -11,26 +11,19 @@ copyright:           Matt Walker
 category:            Language
 build-type:          Simple
 extra-source-files:  README.md
-                     cbits/io.c
 cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Tush.Illuminate
+  exposed-modules:     Tush.Compile.LLVM.Prelude
+                     , Tush.Illuminate
                      , Tush.Compile.LLVM.Types
                      , Tush.Compile.LLVM.Instructions
                      , Tush.Expression
                      , Tush.Compile.LLVM.CodeGen2
-                     , Tush.Syntax2
-                     , Tush.Function
                      , Tush.Syntax
                      , Tush.Syntax.Lex
                      , Tush.Syntax.Parse
-                     , Tush.Typecheck
-                     , Tush.Compile.LLVM.CodeGen
-                     , Tush.Compile.LLVM.JIT
-                     , Tush.Compile.LLVM.Mangle
-                     , Tush.Repl
                      , Lib
   build-depends:       base
                      , HUnit
@@ -56,10 +49,8 @@ library
                      , uniplate
                      , lens
                      , ghci-pretty
-  c-sources:           cbits/io.c
   cc-options:         -Wall -fPIC
   ghc-options:        -Wall
-  include-dirs:        include
   default-language:    Haskell2010
 
 executable tush
@@ -86,7 +77,7 @@ test-suite tush-test
                      , tush
                      , megaparsec
                      , QuickCheck
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N -dynamic
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
 source-repository head

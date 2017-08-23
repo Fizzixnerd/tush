@@ -7,6 +7,7 @@ module Lib where
 import ClassyPrelude
 
 import Tush.Repl
+import Tush.Compile.LLVM.CodeGen2
 
 someFunc :: IO ()
-someFunc = repl
+someFunc = print $ compileabunch
