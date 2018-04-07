@@ -19,12 +19,12 @@ import Data.Data
 
 import qualified Data.Set as S
 
-getVars :: (Data t, Ord t) => Expression t -> Vector (Expression t)
-getVars e = fromList $ toList $ S.fromList $ [v | v@(VarE _ _) <- universe e]
+getVars :: (Data t, Ord t) => Expression t -> Set (Expression t)
+getVars e = S.fromList $ [v | v@(VarE _ _) <- universe e]
 
 -- | NOTE: Assumes variables are unique!
-getFreeVars :: (Ord t, Data t) => Expression t -> Vector (Expression t)
-getFreeVars e = fromList $ S.toList $ (S.fromList (toList $ getVars e) S.\\ S.fromList (toList $ getBoundVars e))
+getFreeVars :: (Ord t, Data t) => Expression t -> Set (Expression t)
+getFreeVars e = (S.fromList (toList $ getVars e) S.\\ S.fromList (toList $ getBoundVars e))
 
-getBoundVars :: (Data t, Ord t) => Expression t -> Vector (Expression t)
-getBoundVars e = fromList $ toList $ S.fromList $ [v | LamE v@(VarE _ _) _ _ <- universe e]
+getBoundVars :: (Data t, Ord t) => Expression t -> Set (Expression t)
+getBoundVars e = S.fromList $ [v | LamE v@(VarE _ _) _ _ <- universe e]

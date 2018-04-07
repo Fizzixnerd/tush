@@ -17,12 +17,13 @@ import LLVM.Analysis
 
 import qualified LLVM.ExecutionEngine as EE
 
-foreign import ccall "dynamic" haskFun :: FunPtr (IO Double) -> (IO Double)
+foreign import ccall "dynamic" haskFun :: FunPtr (IO Int) -> (IO Int)
 
 runJIT :: AST.Module -> IO AST.Module
 runJIT mod' = do
   withContext $ \context ->
-    withModuleFromAST context mod' $ \m ->
+    withModuleFromAST context mod' $ \m -> do
+    writeLLVMAssemblyToFile (File "tush.ll") m
     withPassManager passes $ \pm -> do
       -- verify the AST
       verify m
@@ -33,7 +34,7 @@ runJIT mod' = do
       -- jit compile and run the code
       jit context $ \executionEngine ->
         EE.withModuleInEngine executionEngine m $ \ee -> do
-          mainfn <- EE.getFunction ee (AST.Name "main")
+          mainfn <- EE.getFunction ee (AST.Name "__main")
           case mainfn of
             Just fn -> do
               res <- run fn
@@ -52,8 +53,8 @@ jit c = EE.withMCJIT c optlevel model ptrelim fastins
     ptrelim = Nothing
     fastins = Nothing
 
-run :: FunPtr a -> IO Double
-run fn = haskFun (castFunPtr fn :: FunPtr (IO Double))
+run :: FunPtr a -> IO Int
+run fn = haskFun (castFunPtr fn :: FunPtr (IO Int))
 
 passes :: PassSetSpec
 passes = defaultCuratedPassSetSpec { optLevel = Just 3 }

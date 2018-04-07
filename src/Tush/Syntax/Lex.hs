@@ -51,7 +51,7 @@ reservedPunctuation = M.fromList [ (',', Comma)
                                  , ('}', CloseBrace)
                                  , ('[', OpenBracket)
                                  , (']', CloseBracket)
-                                 , ('\\', Backslash) ] 
+                                 , ('\\', Backslash) ]
 
 reservedOps :: Map Text ReservedOp
 reservedOps = M.fromList [ ("->", Arrow)

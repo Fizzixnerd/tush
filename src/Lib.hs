@@ -6,8 +6,8 @@ module Lib where
 
 import ClassyPrelude
 
-import Tush.Repl
 import Tush.Compile.LLVM.CodeGen2
+import IPPrint.Colored
 
 someFunc :: IO ()
-someFunc = print $ compileabunch
+someFunc = cpprint $ (\(x:xs) -> x) $ compileabunch

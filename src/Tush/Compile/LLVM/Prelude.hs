@@ -11,6 +11,7 @@ module Tush.Compile.LLVM.Prelude where
 
 import LLVM.AST as A
 import LLVM.AST.Constant
+import LLVM.AST.AddrSpace as AS
 
 import ClassyPrelude
 
@@ -46,8 +47,8 @@ preludeF :: FunctionState
 preludeF = FunctionState { _currentBlock = A.Name "__main"
                          , _blockTable = M.fromList [( A.Name "__main"
                                                      , preludeB )]
-                         , _returnType = Nothing
-                         , _fargs = Nothing
+                         , _returnType = Just VoidType
+                         , _fargs = Just []
                          , _symbolTable = preludeST
                          , _blockCount = 1
                          , _blockNameTable = M.fromList [( "__main"
@@ -57,17 +58,17 @@ preludeF = FunctionState { _currentBlock = A.Name "__main"
 preludeB :: BlockState
 preludeB = BlockState { _idx = 0
                       , _stack = []
-                      , _terminator = Nothing
+                      , _terminator = Just $ (UnName 99999) := (Ret Nothing [])
                       }
 
 preludeST :: Map S.Var Operand
 preludeST = M.fromList [( S.Var "+" S.VClassOperator
                         , ConstantOperand 
                           (GlobalReference 
-                           (FunctionType { resultType = IntegerType 64
+                           (PointerType (FunctionType { resultType = IntegerType 64
                                          , argumentTypes = [ IntegerType 64
                                                            , IntegerType 64 ]
-                                         , isVarArg = False })
+                                         , isVarArg = False }) (AS.AddrSpace 0))
                             "__add")
                         )]
 

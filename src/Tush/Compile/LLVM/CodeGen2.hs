@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+
 -- | CodeGen2.hs
 -- Author: Matt Walker
 -- License: https://opensource.org/licenses/BSD-2-Clause
@@ -40,6 +41,8 @@ import qualified Data.Text.Encoding as TE
 import qualified Data.Map as M
 import Data.Maybe
 import qualified Data.List as L
+import qualified Data.Set as Set
+import qualified Data.Vector as V
 
 execLlvm :: Llvm a -> (Either UnreachableError a, LlvmState)
 execLlvm x = runIdentity $ runStateT (runLlvmT (runExceptT x)) P.prelude
@@ -230,8 +233,8 @@ callLFunc lfunc arg = do
   funcArgArray <- load funcArgArrayAddr
 
   let argTypes = case func of
-        (LocalReference (PointerType (FunctionType _ argTypes _) _) _) -> argTypes
-        (ConstantOperand (C.GlobalReference (PointerType (FunctionType _ argTypes _) _) _)) -> argTypes
+        (LocalReference (PointerType (FunctionType _ argTypes' _) _) _) -> argTypes'
+        (ConstantOperand (C.GlobalReference (PointerType (FunctionType _ argTypes' _) _) _)) -> argTypes'
         x -> error (show x)
       -- We want the tail because the first arg is the logical
       -- argument
@@ -281,7 +284,7 @@ generateFromExpression e@(S.LamE _ _ _) = do
   
   -- Now we find the free variables in the function and arrange to
   -- store those for later loading.
-  let freeVars = e^.S.lamEBody.to getFreeVars
+  let freeVars = V.fromList $ Set.toList $ (e^.S.lamEBody.to getFreeVars) \\ (traceShow (Set.fromList [e^.to S._lamEArg]) (Set.fromList [e^.to S._lamEArg]))
       freeOperands = (\(S.VarE var t) -> LocalReference (typeToType t) (varToName var)) <$> freeVars
       freeVarsVars = (\(S.VarE var _ ) -> var) <$> freeVars
       freeNames = (\(LocalReference _ n) -> n) <$> freeOperands

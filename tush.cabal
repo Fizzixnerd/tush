@@ -24,6 +24,8 @@ library
                      , Tush.Syntax
                      , Tush.Syntax.Lex
                      , Tush.Syntax.Parse
+                     , Tush.Typecheck2
+                     , Tush.Unify
                      , Lib
   build-depends:       base
                      , HUnit

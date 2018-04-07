@@ -47,16 +47,16 @@ newName = do
 -- variables.
 illuminate :: (MonadState IlluminateState m, Eq t, Data t) =>
               Expression t -> m (Expression t)
-illuminate (LamE var arg t) = do
-  (var', arg') <- illuminate' var arg
-  arg'' <- illuminate arg'
-  return $ LamE var' arg'' t
+illuminate (LamE var bdy t) = do
+  (var', bdy') <- illuminate' var bdy
+  bdy'' <- illuminate bdy'
+  return $ LamE var' bdy'' t
 illuminate y@(VarE _ _) = return y
 illuminate y@(LitE _ _) = return y
-illuminate (AppE arg bdy t) = do
+illuminate (AppE fn arg t) = do
   arg' <- illuminate arg
-  bdy' <- illuminate bdy
-  return $ AppE arg' bdy' t
+  fn' <- illuminate fn
+  return $ AppE arg' fn' t
 illuminate (IfE i th el t) = do
   i' <- illuminate i
   th' <- illuminate th

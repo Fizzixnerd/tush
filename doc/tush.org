@@ -10,8 +10,8 @@
 ** Language Design
 
    - Haskell-like syntax.
-   - Static typing, type inference, typeclasses, parametric
-     polymorphism, algebraic data types, immutable data.
+   - Static typing, type inference, typeclasses, parametric polymorphism,
+     algebraic data types, immutable data (but in IO by default).
    - Command /schemas/ allow quick integration with existing shell
      commands written in other languages.
    - Command /wrappers/ allow allow deeper integration by turning
@@ -24,15 +24,70 @@
    - Compiles to POSIX =sh=? *NO.*
    - Compiles to LLVM? *YES.*
 
+*** Files
+    Since many things are "files" in *nix, it makes sense that we would have a
+    bunch of typeclasses:
+
+    #+BEGIN_SRC haskell
+    class StreamRead s where
+      readStream :: s -> ByteString
+
+    class StreamWrite s where
+      writeStream :: s -> ByteString -> ()
+    #+END_SRC
+
+    This is raw reading/writing of files using the OS. Can we do something a
+    little more interesting?
+
+    #+BEGIN_SRC haskell
+      class File f t where
+        read :: f t -> t
+        write :: f t -> t -> ()
+
+      instance (StreamRead (f ByteString), StreamWrite (f ByteString) =>
+      File f ByteString where
+        read = readStream
+        write = writeStream
+    #+END_SRC
+
+    f is the concrete file type, while t is the "filetype". So we might have
+    `RegularFile Json', where f = RegularFile and t = Json. But how does the
+    runtime know what filetype you want something to be? We can't get it from
+    the OS directly, afterall. The simplest way would to just interpret based on
+    the filename a la Windows:
+
+    #+BEGIN_SRC haskell
+    $ :t ./foo.json
+    =:> RegularFile Json
+
+    $ :t ./foo.txt
+    =:> RegularFile Text
+    #+END_SRC
+
+    But you should also be able to specify explicitly.
+
+    #+BEGIN_SRC haskell
+    castFile :: (File f s, File f t) => f s -> f t
+    asRawFile :: (File f s, File f ByteString) => f s -> f ByteString
+    asRawFile = castFile
+
+    $ :t ./foo.json | castFile
+    =:> File RegularFile t => RegularFile t
+
+    $ ./foo.json | castFile | read :: ByteString
+    => "{}"
+    =:> {}
+    #+END_SRC
+
 ** Shell Design
 
    - Ultra-interactive with real-time feedback via /Feedback/ typeclass.
    - Super-intelligent completion via /Complete/ typeclass.
    - Project integration (cabal, stack, git, mercurial, etc.) via /Project/ typeclass.
-   - Structured access to files via /FileSchema/ typeclass.
+   - Structured access to files via /File/ typeclass.
    - Realtime widgets with /Widget/ typeclass.
    - Filesystem event watching with /Notify/ typeclass.
-   - Virtual files with /File/ typeclass (maybe for exploring .gzip files, etc?).
+   - Virtual files with /VFile/ typeclass (maybe for exploring .gzip files, etc?).
 
 *** Technical Issues
 
@@ -75,7 +130,13 @@
      =:> ** Runtime Exception! File /home/matt/bigfile.bin
      is not executable**
 
-     $ ./bigfile.bin | chmod { chExec = True } ChmodPreserve
+     $ def :: ChmodOptions
+     => { exec  = Preserve
+        , group = Preserve
+        , user  = Preserve } :: ChmodOptions
+     =:> <documentation for def>
+
+     $ ./bigfile.bin | chmod def { exec = Enable }
      => /home/matt/bigfile.bin :: File (Schema Binary)
      =:> <executable binary file>
 
@@ -100,7 +161,7 @@
      =:> <documentation for jsonFieldNames>
 
      $ read
-     => <method read of class FileC> :: FileC f (Schema t) => f (Schema t) -> IO t
+     => <method read of class IFile> :: (IFile f t, Schema t) => f t -> IO t
      =:> <documentation for read>
 
      $ ./boring.json | read | jsonFieldNames
