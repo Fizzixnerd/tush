@@ -13,4 +13,4 @@ extra-deps:
 - ipprint-0.6
 - sbv-7.1
 - sr-extra-1.46.3.2
-resolver: lts-9.0
+resolver: lts-11.3

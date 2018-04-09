@@ -22,7 +22,8 @@
      match systems (i.e., based on =find=, =locate=, etc.)
    - Compiles to Haskell? *NO.*
    - Compiles to POSIX =sh=? *NO.*
-   - Compiles to LLVM? *YES.*
+   - Compiles to LLVM? *NO.*
+   - Interpreted.
 
 *** Files
     Since many things are "files" in *nix, it makes sense that we would have a
@@ -52,9 +53,9 @@
 
     f is the concrete file type, while t is the "filetype". So we might have
     `RegularFile Json', where f = RegularFile and t = Json. But how does the
-    runtime know what filetype you want something to be? We can't get it from
-    the OS directly, afterall. The simplest way would to just interpret based on
-    the filename a la Windows:
+    tush know what filetype you want something to be? We can't get it from the
+    OS directly, afterall. The simplest way would to just interpret based on the
+    filename:
 
     #+BEGIN_SRC haskell
     $ :t ./foo.json
@@ -81,8 +82,8 @@
 
 ** Shell Design
 
-   - Ultra-interactive with real-time feedback via /Feedback/ typeclass.
-   - Super-intelligent completion via /Complete/ typeclass.
+   - Interactive with real-time feedback via /Feedback/ typeclass.
+   - Intelligent completion via /Complete/ typeclass.
    - Project integration (cabal, stack, git, mercurial, etc.) via /Project/ typeclass.
    - Structured access to files via /File/ typeclass.
    - Realtime widgets with /Widget/ typeclass.
@@ -101,8 +102,6 @@
 
      There seems to be no point in using STM, since we don't control
      the OS.
-
-**** 
 
 ** Examples
 
