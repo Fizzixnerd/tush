@@ -9,6 +9,7 @@ import qualified System.Process.Typed as P
 import qualified Language.Tush.Syntax as S
 import Language.Tush.Path
 import System.Exit
+import Text.Printf
 
 run_ :: S.Path -> Vector Text -> IO Int
 run_ p args = do
@@ -35,7 +36,7 @@ run :: S.Builtin
 run = S.Builtin "run" $ \case
   (S.EPath p) -> return $ S.EBuiltin $ S.Builtin "run" $ \case
     S.EVector (S.TushVector args_) -> S.EInt <$> checkRun p args_
-    _ -> error "Expected a [String] as the second argument to `run'."
+    x -> error $ printf "Expected a [String] as the second argument to `run', got %s" (show x)
   _ -> error "Expected a Path as the first argument to `run'."
 
 -- add :: S.Builtin

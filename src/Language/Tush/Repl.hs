@@ -9,7 +9,7 @@ import Language.Tush.Eval
 repl :: IO ()
 repl = do
   line <- getLine
-  let Right parsed = parse expressionP line
+  let Right parsed = parse line
   x <- applyBuiltin (eval startEnv) parsed
   print x
   repl

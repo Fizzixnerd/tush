@@ -125,13 +125,29 @@ parensedP = do
 atomicP :: TushParser S.Expression
 atomicP = MP.try (S.EString <$> tushStringP)
           <|> MP.try (S.EPath <$> pathP)
+          <|> MP.try (S.EVector <$> tushVectorP)
           <|> MP.try parensedP
           <|> (S.EName <$> nameP)
 
 expressionP :: TushParser S.Expression
-expressionP = MP.label "Expression" $
-              MP.try (S.ECall <$> callP)
-              <|> atomicP
+expressionP = MP.label "Expression" $ do
+  atomics <- do
+    as <- fromList <$> many atomicP
+    void $ optional $ token S.Newline
+    return as
+  when (null atomics) $
+    error "Got an empty Expression."
+  if length atomics == 1
+    then return $ atomics V.! 0
+    else return $ V.foldl1' (\exp1 exp2 -> case exp2 of
+                                S.EName (S.NOperator _) -> S.ECall S.Call
+                                                           { S._callFunc = exp2
+                                                           , S._callOperand = exp1
+                                                           }
+                                _ -> S.ECall S.Call
+                                     { S._callFunc = exp1
+                                     , S._callOperand = exp2
+                                     }) atomics
 
 parseWith :: TushParser a -> Text -> Either (MP.ParseError S.DToken (MP.ErrorFancy Void)) a
 parseWith p s =

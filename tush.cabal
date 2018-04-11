@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8ddc56d5c63cb0b3b7418d5b908002e1d42ef0f20650be66c3c4fdaf66d76236
+-- hash: 6d5bb99bf1dd741c7f30394f9e0e734550946dbe5223f003ab1c8d76394997a3
 
 name:           tush
 version:        0.1.0.0
@@ -65,7 +65,6 @@ library
       Language.Tush.Repl
       Language.Tush.Syntax
       Language.Tush.Types
-      Language.Tush.Value
   other-modules:
       Paths_tush
   default-language: Haskell2010

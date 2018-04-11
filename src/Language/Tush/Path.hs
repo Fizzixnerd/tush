@@ -26,5 +26,5 @@ pathToFilePath Path {..} =
                         then ""
                         else "." ++ extension
   in
-    prefix ++ concat directory ++ file ++ dottedExtension
+    prefix ++ concat directory ++ "/" ++ file ++ dottedExtension
 

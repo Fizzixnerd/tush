@@ -120,6 +120,18 @@ rparenT = const S.RParen <$> MP.char ')'
 dRparenT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dRparenT = MP.label "')'" $ mkDTokenP rparenT
 
+lbracketT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+lbracketT = const S.LBracket <$> MP.char '['
+
+dLbracketT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
+dLbracketT = MP.label "'['" $ mkDTokenP lbracketT
+
+rbracketT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+rbracketT = const S.RBracket <$> MP.char ']'
+
+dRbracketT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
+dRbracketT = MP.label "']'" $ mkDTokenP rbracketT
+
 newlineT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
 newlineT = const S.Newline <$> MP.char '\n'
 
@@ -139,6 +151,8 @@ dToken :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dToken = MP.try dEqualsT
          <|> MP.try dLparenT
          <|> MP.try dRparenT
+         <|> MP.try dLbracketT
+         <|> MP.try dRbracketT
          <|> MP.try dNewlineT
          <|> MP.try dIntT
          <|> MP.try dStringT
