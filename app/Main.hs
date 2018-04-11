@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import Language.Tush.Repl
 
 main :: IO ()
-main = someFunc
+main = repl

@@ -25,6 +25,10 @@
    - Compiles to LLVM? *NO.*
    - Interpreted.
 
+*** Currying Builtins
+
+    So I've discovered an issue.  Take `run' for example.
+
 *** Files
     Since many things are "files" in *nix, it makes sense that we would have a
     bunch of typeclasses:

@@ -1,87 +1,148 @@
-name:                tush
-version:             0.1.0.0
--- synopsis:
--- description:
-homepage:            https://github.com/Fizzixnerd/tush#readme
-license:             BSD3
-license-file:        LICENSE
-author:              Matt Walker
-maintainer:          matt.g.d.walker@gmail.com
-copyright:           Matt Walker
-category:            Language
-build-type:          Simple
-extra-source-files:  README.md
-cabal-version:       >=1.10
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 8ddc56d5c63cb0b3b7418d5b908002e1d42ef0f20650be66c3c4fdaf66d76236
 
-library
-  hs-source-dirs:      src
-  exposed-modules:     Tush.Compile.LLVM.Prelude
-                     , Tush.Illuminate
-                     , Tush.Compile.LLVM.Types
-                     , Tush.Compile.LLVM.Instructions
-                     , Tush.Expression
-                     , Tush.Compile.LLVM.CodeGen2
-                     , Tush.Syntax
-                     , Tush.Syntax.Lex
-                     , Tush.Syntax.Parse
-                     , Tush.Typecheck2
-                     , Tush.Unify
-                     , Lib
-  build-depends:       base
-                     , HUnit
-                     , QuickCheck
-                     , bytestring
-                     , classy-prelude
-                     , containers
-                     , equivalence
-                     , exceptions
-                     , haskeline
-                     , hspec
-                     , llvm-hs
-                     , llvm-hs-pure
-                     , megaparsec
-                     , mtl
-                     , sbv
-                     , tasty
-                     , tasty-hspec
-                     , tasty-hunit
-                     , tasty-quickcheck
-                     , text
-                     , vector
-                     , uniplate
-                     , lens
-                     , ghci-pretty
-  cc-options:         -Wall -fPIC
-  ghc-options:        -Wall
-  default-language:    Haskell2010
+name:           tush
+version:        0.1.0.0
+synopsis:       A Typed Unix Shell
+description:    Please see the README on Github at <https://github.com/Fizzixnerd/haskell-game#readme>
+category:       Language
+homepage:       https://github.com/Fizzixnerd/tush#readme
+bug-reports:    https://github.com/Fizzixnerd/tush/issues
+author:         Matt Walker
+maintainer:     matt.g.d.walker@gmail.com
+copyright:      2017-2018 Matt Walker
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
 
-executable tush
-  hs-source-dirs:      app
-  main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base
-                     , tush
-  default-language:    Haskell2010
-
-test-suite tush-test
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  main-is:             Spec.hs
-  other-modules:       Tush.Parse.LexSpec
-                     , Tush.Parse.ParseSpec
-                     , Tush.Parse.ExprSpec
-                     , Tush.Typecheck.TypecheckSpec
-  build-depends:       base
-                     , classy-prelude
-                     , containers
-                     , vector
-                     , hspec
-                     , tush
-                     , megaparsec
-                     , QuickCheck
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  default-language:    Haskell2010
+extra-source-files:
+    README.md
 
 source-repository head
-  type:     git
+  type: git
   location: https://github.com/Fizzixnerd/tush
+
+library
+  hs-source-dirs:
+      src
+  build-depends:
+      HUnit
+    , QuickCheck
+    , base
+    , bytestring
+    , classy-prelude
+    , containers
+    , equivalence
+    , exceptions
+    , ghci-pretty
+    , haskeline
+    , hspec
+    , lens
+    , llvm-hs
+    , llvm-hs-pure
+    , megaparsec
+    , mtl
+    , sbv
+    , tasty
+    , tasty-hspec
+    , tasty-hunit
+    , tasty-quickcheck
+    , text
+    , typed-process
+    , uniplate
+    , vector
+  exposed-modules:
+      Language.Tush
+      Language.Tush.Builtins
+      Language.Tush.Eval
+      Language.Tush.Lex
+      Language.Tush.Parse
+      Language.Tush.Path
+      Language.Tush.Repl
+      Language.Tush.Syntax
+      Language.Tush.Types
+      Language.Tush.Value
+  other-modules:
+      Paths_tush
+  default-language: Haskell2010
+
+executable tush-exe
+  main-is: Main.hs
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
+  build-depends:
+      HUnit
+    , QuickCheck
+    , base
+    , bytestring
+    , classy-prelude
+    , containers
+    , equivalence
+    , exceptions
+    , ghci-pretty
+    , haskeline
+    , hspec
+    , lens
+    , llvm-hs
+    , llvm-hs-pure
+    , megaparsec
+    , mtl
+    , sbv
+    , tasty
+    , tasty-hspec
+    , tasty-hunit
+    , tasty-quickcheck
+    , text
+    , tush
+    , typed-process
+    , uniplate
+    , vector
+  other-modules:
+      Paths_tush
+  default-language: Haskell2010
+
+test-suite tush-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
+  build-depends:
+      HUnit
+    , QuickCheck
+    , base
+    , bytestring
+    , classy-prelude
+    , containers
+    , equivalence
+    , exceptions
+    , ghci-pretty
+    , haskeline
+    , hspec
+    , lens
+    , llvm-hs
+    , llvm-hs-pure
+    , megaparsec
+    , mtl
+    , sbv
+    , tasty
+    , tasty-hspec
+    , tasty-hunit
+    , tasty-quickcheck
+    , text
+    , tush
+    , typed-process
+    , uniplate
+    , vector
+  other-modules:
+      Tush.Parse.ExprSpec
+      Tush.Parse.LexSpec
+      Tush.Parse.ParseSpec
+      Tush.Typecheck.TypecheckSpec
+      Paths_tush
+  default-language: Haskell2010

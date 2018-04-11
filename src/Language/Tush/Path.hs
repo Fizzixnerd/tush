@@ -5,16 +5,13 @@
 module Language.Tush.Path where
 
 import ClassyPrelude
-import Language.Tush.Types
-import qualified Data.ByteString.Char8 as BS
-import qualified Text.Megaparsec as MP
-import qualified Text.Megaparsec.Char as MP
+import Language.Tush.Syntax
 
 pathComponentToFilePath :: PathComponent -> FilePath
-pathComponentToFilePath (PCLiteral pc) = BS.unpack pc
+pathComponentToFilePath (PathComponent pc) = unpack pc
 
 filePathToPathComponent :: String -> PathComponent
-filePathToPathComponent fp = PCLiteral $ BS.pack fp
+filePathToPathComponent fp = PathComponent $ pack fp
 
 pathToFilePath :: Path -> FilePath
 pathToFilePath Path {..} =
@@ -24,7 +21,10 @@ pathToFilePath Path {..} =
       mExtension = do
         f <- _pathFile
         snd f
-      extension = maybe "" (BS.unpack . unPathExtension) mExtension
+      extension = maybe "" (unpack . _unPathExtension) mExtension
+      dottedExtension = if null extension
+                        then ""
+                        else "." ++ extension
   in
-    prefix ++ concat directory ++ file ++ extension
+    prefix ++ concat directory ++ file ++ dottedExtension
 

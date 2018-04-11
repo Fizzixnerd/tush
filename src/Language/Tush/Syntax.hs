@@ -3,6 +3,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Language.Tush.Syntax where
 
@@ -12,6 +14,7 @@ import ClassyPrelude
 import Control.Lens
 import Data.Data
 import qualified Data.Vector as V
+import Text.Printf
 
 -- * Parsing Bookkeeping
 
@@ -40,14 +43,22 @@ data DebugInfo = DebugInfo { _diStart :: !(Row, Col)
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 type DToken = DebugToken DebugInfo
+type IsRel = Bool
+type IsDir = Bool
 
 data Token = TIdentifier Text
+           | TOperator Text
+           | TPath (Vector Text) IsRel IsDir
+           | TString Text
+           | TInt Int
            -- symbols and punctuation
            | Equals
            | LAngle
            | RAngle
            | LBracket
            | RBracket
+           | LParen
+           | RParen
            | LBrace
            | RBrace
            | Colon
@@ -74,6 +85,7 @@ data Token = TIdentifier Text
 
 -- | Newtype around a Vector of `DToken's; represents lexed source.
 newtype TushTokenStream = TushTokenStream { unStream :: Vector DToken }
+  deriving Show
 
 -- | Megaparsec Stream instance so that this properly works with the
 -- rest of the library.
@@ -108,21 +120,71 @@ instance MP.Stream TushTokenStream where
 --
 -- We probably want to include globbing/regexes here somehow in a rational way.
 
-data PathComponent = PCLiteral ByteString
+newtype PathComponent = PathComponent Text
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-newtype PathExtension = PathExtension { _unPathExtension :: ByteString }
+newtype PathExtension = PathExtension { _unPathExtension :: Text }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Path = Path
   { _pathDirectory :: Vector PathComponent
   , _pathFile :: Maybe (PathComponent, Maybe PathExtension)
   , _pathIsRelative :: Bool
+  , _pathIsDirectory :: Bool
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+newtype Identifier = Identifier { _unIdentifier :: Text }
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+newtype Operator = Operator { _unOperator :: Text }
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+newtype TushString = TushString { _unTushString :: Text }
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+data Name = NIdentifier Identifier
+          | NOperator Operator
+          deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+data Call = Call
+  { _callFunc :: Expression
+  , _callOperand :: Expression
+  } deriving (Show, Typeable, Generic)
+
+newtype TushVector = TushVector { _unTushVector :: Vector Expression }
+  deriving (Show, Typeable, Generic)
+
+newtype TushInt = TushInt { _unTushInt :: Int }
+  deriving (Eq, Ord, Show, Data, Typeable, Generic, Num)
+
+data Builtin = Builtin
+  { _builtinName :: Text
+  , _builtinFunc :: Expression -> IO Expression
+  }
+
+instance Show Builtin where
+  show Builtin {..} = printf "<<Builtin Function %s>>" (unpack _builtinName)
+
+data Expression = ECall Call
+                | EName Name
+                | EPath Path
+                | EString TushString
+                | EVector TushVector
+                | EInt TushInt
+                | EBuiltin Builtin
+                deriving (Show, Typeable, Generic)
+
+data Statement = SExpression Expression
+  deriving (Show, Typeable, Generic)
 
 mconcat <$> mapM makeLenses
   [ ''Path
   , ''PathExtension
   , ''PathComponent
   , ''DebugInfo
+  , ''Identifier
+  , ''Operator
+  , ''Call
+  , ''TushVector
+  , ''TushInt
   ]
