@@ -82,6 +82,13 @@ tushStringP = MP.label "String" $ do
     _ -> False
   return $ S.TushString s
 
+intP :: TushParser S.TushInt
+intP = MP.label "Int" $ do
+  S.TInt i <- satisfy $ \case
+    S.TInt _ -> True
+    _ -> False
+  return $ S.TushInt i
+
 tushVectorP :: TushParser S.TushVector
 tushVectorP = MP.label "Vector" $ do
   void $ token S.LBracket
@@ -124,6 +131,7 @@ parensedP = do
 
 atomicP :: TushParser S.Expression
 atomicP = MP.try (S.EString <$> tushStringP)
+          <|> MP.try (S.EInt <$> intP)
           <|> MP.try (S.EPath <$> pathP)
           <|> MP.try (S.EVector <$> tushVectorP)
           <|> MP.try parensedP

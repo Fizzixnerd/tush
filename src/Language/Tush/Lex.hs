@@ -139,7 +139,7 @@ dNewlineT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dNewlineT = MP.label "<Newline>" $ mkDTokenP newlineT
 
 intT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
-intT = S.TInt <$> MP.signed space MP.decimal
+intT = S.TInt <$> MP.decimal
 
 dIntT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dIntT = MP.label "Integer" $ mkDTokenP intT

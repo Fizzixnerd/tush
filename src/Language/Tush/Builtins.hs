@@ -39,8 +39,10 @@ run = S.Builtin "run" $ \case
     x -> error $ printf "Expected a [String] as the second argument to `run', got %s" (show x)
   _ -> error "Expected a Path as the first argument to `run'."
 
--- add :: S.Builtin
--- add (S.EInt x) = return $ S.EBuiltin $ \case
---   S.EInt y -> return $ S.EInt $ x + y
---   _ -> error "Expected an Int as the second argument to `add'."
--- add _ = error "Expected an Int as the first argument to `add'."
+add :: S.Builtin
+add = S.Builtin "+" $ \case
+  S.EInt x -> return $ S.EBuiltin $ S.Builtin "+" $ \case
+    S.EInt y -> return $ S.EInt $ x + y
+    y -> error $ printf "Expected an Int as the second argument to `+', got %s." (show y)
+  x -> error $ printf "Expected an Int as the first argument to `+', got %s" (show x)
+

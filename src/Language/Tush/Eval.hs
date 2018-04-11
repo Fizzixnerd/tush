@@ -10,18 +10,20 @@ import qualified Language.Tush.Syntax as S
 import qualified Data.Map as M
 import Text.Printf
 import Language.Tush.Builtins
+import Language.Tush.Parse
 
-type Environment = Map S.Name S.Expression
+type Environment = Map Text S.Expression
 
 applyBuiltin :: S.Builtin -> S.Expression -> IO S.Expression
 applyBuiltin S.Builtin {..} = _builtinFunc
 
 startEnv :: Environment
-startEnv = M.fromList [ (S.NIdentifier $ S.Identifier "run", S.EBuiltin run) ]
+startEnv = M.fromList [ ("run", S.EBuiltin run)
+                      , ("+", S.EBuiltin add)]
 
 eval :: Environment -> S.Builtin
 eval env = S.Builtin "eval" $ \case
-  S.EName n -> case lookup n env of
+  S.EName n -> case lookup (S.nameToText n) env of
     Nothing -> error $ printf "Could not locate %s in environment." (show n)
     Just e  -> return e
   p@(S.EPath _) -> return p
@@ -36,3 +38,8 @@ eval env = S.Builtin "eval" $ \case
       S.EBuiltin S.Builtin {..} -> _builtinFunc op_
       _ -> error $ printf "Could not call function %s." (show fn)
 
+evalText :: Text -> IO S.Expression
+evalText t =
+  let Right parsed = parse t
+  in
+    applyBuiltin (eval startEnv) parsed

@@ -146,6 +146,10 @@ data Name = NIdentifier Identifier
           | NOperator Operator
           deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+nameToText :: Name -> Text
+nameToText (NIdentifier (Identifier x)) = x
+nameToText (NOperator (Operator x)) = x
+
 data Call = Call
   { _callFunc :: Expression
   , _callOperand :: Expression
