@@ -54,7 +54,7 @@ operatorP = MP.label "Operator" $ do
 
 pathP :: TushParser S.Path
 pathP = MP.label "Path" $ do
-  S.TPath pcs _pathIsRelative _pathIsDirectory <- satisfy $ \case
+  S.TPath pcs _pathRelativity _pathIsDirectory <- satisfy $ \case
     S.TPath {} -> True
     _ -> False
   let pcs' = S.PathComponent <$> pcs
@@ -75,8 +75,8 @@ pathP = MP.label "Path" $ do
                          Just (fname, fext)
   return S.Path {..}
 
-tushStringP :: TushParser S.TushString
-tushStringP = MP.label "String" $ do
+stringP :: TushParser S.TushString
+stringP = MP.label "String" $ do
   S.TString s <- satisfy $ \case
     S.TString _ -> True
     _ -> False
@@ -89,38 +89,38 @@ intP = MP.label "Int" $ do
     _ -> False
   return $ S.TushInt i
 
-tushVectorP :: TushParser S.TushVector
-tushVectorP = MP.label "Vector" $ do
+vectorP :: TushParser S.TushVector
+vectorP = MP.label "Vector" $ do
   void $ token S.LBracket
-  eles <- MP.sepBy expressionP (token S.Comma)
+  eles <- vectorInternalP
   void $ token S.RBracket
   return $ S.TushVector $ fromList eles
 
-tushIntP :: TushParser S.TushInt
-tushIntP = MP.label "Integer" $ do
-  S.TInt i <- satisfy $ \case
-    S.TInt _ -> True
-    _ -> False
-  return $ S.TushInt i
-
-callP :: TushParser S.Call
-callP = MP.label "Function Call" $ do
-  exp1 <- atomicP
-  exp2 <- atomicP
-  case exp2 of
-    S.EName (S.NOperator _) -> return S.Call
-                               { S._callFunc = exp2
-                               , S._callOperand = exp1
-                               }
-    _ -> return S.Call
-         { S._callFunc = exp1
-         , S._callOperand = exp2
-         }
+vectorInternalP :: TushParser [S.Expression]
+vectorInternalP = MP.sepBy expressionP (token S.Comma)
 
 nameP :: TushParser S.Name
 nameP = MP.label "Name" $
         MP.try (S.NIdentifier <$> identifierP)
         <|> (S.NOperator <$> operatorP)
+
+boolP :: TushParser S.TushBool
+boolP = MP.label "Bool" $ do
+  b <- satisfy $ \case
+    S.TTrue -> True
+    S.TFalse -> True
+    _ -> False
+  return $ S.TushBool (b == S.TTrue)
+
+iteP :: TushParser S.Ite
+iteP = MP.label "`If' Expression" $ do
+  void $ token S.If
+  i <- expressionP
+  void $ token S.Then
+  t <- expressionP
+  void $ token S.Else
+  e <- expressionP
+  return $ S.Ite i t e
 
 parensedP :: TushParser S.Expression
 parensedP = do
@@ -130,10 +130,12 @@ parensedP = do
   return e
 
 atomicP :: TushParser S.Expression
-atomicP = MP.try (S.EString <$> tushStringP)
+atomicP = MP.try (S.EString <$> stringP)
           <|> MP.try (S.EInt <$> intP)
           <|> MP.try (S.EPath <$> pathP)
-          <|> MP.try (S.EVector <$> tushVectorP)
+          <|> MP.try (S.EVector <$> vectorP)
+          <|> MP.try (S.EBool <$> boolP)
+          <|> MP.try (S.EIte <$> iteP)
           <|> MP.try parensedP
           <|> (S.EName <$> nameP)
 
@@ -143,11 +145,11 @@ expressionP = MP.label "Expression" $ do
     as <- fromList <$> many atomicP
     void $ optional $ token S.Newline
     return as
-  when (null atomics) $
-    error "Got an empty Expression."
-  if length atomics == 1
-    then return $ atomics V.! 0
-    else return $ V.foldl1' (\exp1 exp2 -> case exp2 of
+  case length atomics of
+    0 -> fail "Got empty expression"
+    1 -> return $ atomics V.! 0
+    -- Then it's a Call expression.
+    _ -> return $ V.foldl1' (\exp1 exp2 -> case exp2 of
                                 S.EName (S.NOperator _) -> S.ECall S.Call
                                                            { S._callFunc = exp2
                                                            , S._callOperand = exp1

@@ -197,6 +197,16 @@
      =:> <executable binary file>
    #+END_SRC
 
+   Some ideas I'm thinking about include:
+
+   #+BEGIN_SRC haskell
+     -- equivalent to bash's `foo --bar=baz -abc -d', assuming foo is in the PATH
+     $ /bin/foo ! --bar=baz -abc -d
+     $ /bin/foo --bar=baz -abc -d
+     $ !/foo --bar=baz -abc -d
+     $ run /bin/foo ["--bar=baz", "-abc", "-d"]
+   #+END_SRC
+
 ** Working Through http://www.stephendiehl.com/llvm/
 
 *** DONE Chapters 1 - 4

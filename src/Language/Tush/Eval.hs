@@ -19,7 +19,8 @@ applyBuiltin S.Builtin {..} = _builtinFunc
 
 startEnv :: Environment
 startEnv = M.fromList [ ("run", S.EBuiltin run)
-                      , ("+", S.EBuiltin add)]
+                      , ("+", S.EBuiltin add)
+                      , ("-", S.EBuiltin sub)]
 
 eval :: Environment -> S.Builtin
 eval env = S.Builtin "eval" $ \case
@@ -31,11 +32,21 @@ eval env = S.Builtin "eval" $ \case
   b@(S.EBuiltin _) -> return b
   v@(S.EVector _) -> return v
   i@(S.EInt _) -> return i
+  b@(S.EBool _) -> return b
+  (S.EIte (S.Ite i t e)) -> case i of
+    S.EBool (S.TushBool i') -> if i' then return t else return e
+    x -> error $ printf "Expected Bool in if-then-else expression, got %s" (show x)
   S.ECall S.Call {..} -> do
     op_ <- applyBuiltin (eval env) _callOperand
     fn <- applyBuiltin (eval env) _callFunc
     case fn of
       S.EBuiltin S.Builtin {..} -> _builtinFunc op_
+      p@(S.EPath S.Path {..}) ->
+        case _pathRelativity of
+          S.PATH -> do
+            p' <- (applyBuiltin run p)
+            applyBuiltin (eval env) (S.ECall $ S.Call p' op_)
+          _ -> error $ printf "Could not run non-PATH Path %s" (show p)
       _ -> error $ printf "Could not call function %s." (show fn)
 
 evalText :: Text -> IO S.Expression

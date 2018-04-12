@@ -11,18 +11,19 @@ import Language.Tush.Path
 import System.Exit
 import Text.Printf
 
-run_ :: S.Path -> Vector Text -> IO Int
+run_ :: MonadIO m => S.Path -> Vector Text -> m Int
 run_ p args = do
-  ec <- P.runProcess $ P.proc (pathToFilePath p) (toList $ unpack <$> args)
+  p' <- pathToFilePath p
+  ec <- P.runProcess $ P.proc p' (toList $ unpack <$> args)
   case ec of
     ExitSuccess -> return 0
     ExitFailure n -> return n
 
-checkRun :: S.Path -> Vector S.Expression -> IO S.TushInt
+checkRun :: MonadIO m => S.Path -> Vector S.Expression -> m S.TushInt
 checkRun p args =
   if all isString args
   then S.TushInt <$> run_ p (expStringToText <$> args)
-  else error "`run' is of type Path -> [String] -> ExitCode, but you passed it things that are not Strings!"
+  else error "`run' is of type Path -> [String] -> ExitCode, but was passed things that are not Strings!"
   where
     isString :: S.Expression -> Bool
     isString (S.EString _) = True
@@ -46,3 +47,9 @@ add = S.Builtin "+" $ \case
     y -> error $ printf "Expected an Int as the second argument to `+', got %s." (show y)
   x -> error $ printf "Expected an Int as the first argument to `+', got %s" (show x)
 
+sub :: S.Builtin
+sub = S.Builtin "-" $ \case
+  S.EInt x -> return $ S.EBuiltin $ S.Builtin "-" $ \case
+    S.EInt y -> return $ S.EInt $ x - y
+    y -> error $ printf "Expected an Int as the second argument to `-', got %s." (show y)
+  x -> error $ printf "Expected an Int as the first argument to `-', got %s" (show x)

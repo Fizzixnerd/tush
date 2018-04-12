@@ -43,12 +43,13 @@ data DebugInfo = DebugInfo { _diStart :: !(Row, Col)
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 type DToken = DebugToken DebugInfo
-type IsRel = Bool
+data Relativity = Relative | Absolute | PATH
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 type IsDir = Bool
 
 data Token = TIdentifier Text
            | TOperator Text
-           | TPath (Vector Text) IsRel IsDir
+           | TPath (Vector Text) Relativity IsDir
            | TString Text
            | TInt Int
            -- symbols and punctuation
@@ -80,7 +81,15 @@ data Token = TIdentifier Text
            | SemiColon
            | BSlash
            | Plus
-
+           -- If-then-else (Ite)
+           | If
+           | Then
+           | Else
+           -- do
+           | Do
+           -- bools
+           | TTrue
+           | TFalse
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 -- | Newtype around a Vector of `DToken's; represents lexed source.
@@ -119,7 +128,6 @@ instance MP.Stream TushTokenStream where
 -- PathComponents are just file/directory name literals at the moment.
 --
 -- We probably want to include globbing/regexes here somehow in a rational way.
-
 newtype PathComponent = PathComponent Text
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
@@ -129,7 +137,7 @@ newtype PathExtension = PathExtension { _unPathExtension :: Text }
 data Path = Path
   { _pathDirectory :: Vector PathComponent
   , _pathFile :: Maybe (PathComponent, Maybe PathExtension)
-  , _pathIsRelative :: Bool
+  , _pathRelativity :: Relativity
   , _pathIsDirectory :: Bool
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
@@ -161,6 +169,9 @@ newtype TushVector = TushVector { _unTushVector :: Vector Expression }
 newtype TushInt = TushInt { _unTushInt :: Int }
   deriving (Eq, Ord, Show, Data, Typeable, Generic, Num)
 
+newtype TushBool = TushBool { _unTushBool :: Bool }
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
 data Builtin = Builtin
   { _builtinName :: Text
   , _builtinFunc :: Expression -> IO Expression
@@ -169,13 +180,21 @@ data Builtin = Builtin
 instance Show Builtin where
   show Builtin {..} = printf "<<Builtin Function %s>>" (unpack _builtinName)
 
+data Ite = Ite
+  { iteIf   :: Expression
+  , iteThen :: Expression
+  , iteElse :: Expression
+  } deriving (Show, Typeable, Generic)
+
 data Expression = ECall Call
                 | EName Name
                 | EPath Path
                 | EString TushString
                 | EVector TushVector
                 | EInt TushInt
+                | EBool TushBool
                 | EBuiltin Builtin
+                | EIte Ite
                 deriving (Show, Typeable, Generic)
 
 data Statement = SExpression Expression
