@@ -22,8 +22,12 @@ reservedWords = M.fromList [ ("if", S.If)
                            , ("then", S.Then)
                            , ("else", S.Else)
                            , ("do", S.Do)
+                           , ("<-", S.BwdArrow)
+                           , ("let", S.Let)
+                           , ("in", S.In)
                            , ("True", S.TTrue)
                            , ("False", S.TFalse)
+                           , ("->", S.FwdArrow)
                            ]
 
 reservedSyntax :: Map Char S.Token
@@ -31,9 +35,11 @@ reservedSyntax = M.fromList [ ('[', S.LBracket)
                             , (']', S.RBracket)
                             , ('(', S.LParen)
                             , (')', S.RParen)
-                            , ('\\', S.BSlash)
+                            , ('{', S.LBrace)
+                            , ('}', S.RBrace)
                             , ('"', S.DoubleQuote)
                             , ('\n', S.Newline)
+                            , ('\\', S.Lam)
                             ]
 
 reservedOps :: Map Char S.Token
@@ -54,7 +60,7 @@ reservedOps = M.fromList [ ('=', S.Equals)
                          , ('.', S.Period)
                          , ('$', S.DollarSign)
                          , ('%', S.PercentSign)
-                         , (';', S.SemiColon)
+                         , (';', S.Semicolon)
                          , ('+', S.Plus)
                          ]
 
@@ -81,11 +87,21 @@ reservedWordT = do
           <|> MP.try (MP.string "then" >> return S.Then)
           <|> MP.try (MP.string "else" >> return S.Else)
           <|> MP.try (MP.string "do" >> return S.Do)
+          <|> MP.try (MP.string "<-" >> return S.BwdArrow)
+          <|> MP.try (MP.string "let" >> return S.Let)
+          <|> MP.try (MP.string "in" >> return S.In)
+          <|> (MP.string "->" >> return S.FwdArrow)
   void MP.spaceChar
   return word
 
 dReservedWordT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dReservedWordT = mkDTokenP reservedWordT
+
+lambdaT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+lambdaT = MP.char '\\' >> return S.Lam
+
+dLambdaT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
+dLambdaT = mkDTokenP lambdaT
 
 identifierT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
 identifierT = S.TIdentifier . fromString <$> (some $ MP.satisfy $ \c ->
@@ -172,6 +188,24 @@ rbracketT = MP.char ']' >> return S.RBracket
 dRbracketT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dRbracketT = MP.label "']'" $ mkDTokenP rbracketT
 
+lbraceT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+lbraceT = MP.char '{' >> return S.LBrace
+
+dLbraceT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
+dLbraceT = MP.label "'{'" $ mkDTokenP lbraceT
+
+rbraceT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+rbraceT = MP.char '}' >> return S.RBrace
+
+dRbraceT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
+dRbraceT = MP.label "'}'" $ mkDTokenP rbraceT
+
+semicolonT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+semicolonT = MP.char ';' >> return S.Semicolon
+
+dSemicolonT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
+dSemicolonT = MP.label "';'" $ mkDTokenP semicolonT
+
 newlineT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
 newlineT = MP.char '\n' >> return S.Newline
 
@@ -189,11 +223,15 @@ space = void $ many $ MP.satisfy $ \c -> isSpace c && (c /= '\n')
 
 dToken :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dToken = MP.try dReservedWordT
+         <|> MP.try dLambdaT
          <|> MP.try dEqualsT
          <|> MP.try dLparenT
          <|> MP.try dRparenT
          <|> MP.try dLbracketT
          <|> MP.try dRbracketT
+         <|> MP.try dLbraceT
+         <|> MP.try dRbraceT
+         <|> MP.try dSemicolonT
          <|> MP.try dNewlineT
          <|> MP.try dIntT
          <|> MP.try dStringT

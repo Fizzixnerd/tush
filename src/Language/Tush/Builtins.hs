@@ -22,16 +22,16 @@ run_ p args = do
 checkRun :: MonadIO m => S.Path -> Vector S.Expression -> m S.TushInt
 checkRun p args =
   if all isString args
-  then S.TushInt <$> run_ p (expStringToText <$> args)
-  else error "`run' is of type Path -> [String] -> ExitCode, but was passed things that are not Strings!"
+  then S.TushInt <$> run_ p (stringToText <$> args)
+  else error "`run' is of type Path -> [String] -> Int, but was passed things that are not Strings!"
   where
     isString :: S.Expression -> Bool
     isString (S.EString _) = True
     isString _ = False
 
-    expStringToText :: S.Expression -> Text
-    expStringToText (S.EString (S.TushString t)) = t
-    expStringToText _ = error "Unreachable: checkRun::expStringToText."
+    stringToText :: S.Expression -> Text
+    stringToText (S.EString (S.TushString t)) = t
+    stringToText _ = error "Unreachable: checkRun::expStringToText."
 
 run :: S.Builtin
 run = S.Builtin "run" $ \case
@@ -53,3 +53,10 @@ sub = S.Builtin "-" $ \case
     S.EInt y -> return $ S.EInt $ x - y
     y -> error $ printf "Expected an Int as the second argument to `-', got %s." (show y)
   x -> error $ printf "Expected an Int as the first argument to `-', got %s" (show x)
+
+lt :: S.Builtin
+lt = S.Builtin "<" $ \case
+  S.EInt x -> return $ S.EBuiltin $ S.Builtin "<" $ \case
+    S.EInt y -> return $ S.EBool $ S.TushBool $ x < y
+    y -> error $ printf "Expected an Int as the second argument to `<', got %s" (show y)
+  x -> error $ printf "Expected an Int as the first argument to `<', got %s" (show x)

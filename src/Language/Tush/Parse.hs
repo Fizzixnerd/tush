@@ -122,12 +122,38 @@ iteP = MP.label "`If' Expression" $ do
   e <- expressionP
   return $ S.Ite i t e
 
+bindP :: TushParser S.Bind
+bindP = MP.label "`Let' Expression" $ do
+  void $ token S.Let
+  _bindName <- expressionP
+  void $ token S.Equals
+  _bindValue <- expressionP
+  void $ token S.In
+  _bindBody <- expressionP
+  return S.Bind {..}
+
+lambdaP :: TushParser S.Lambda
+lambdaP = MP.label "`Lambda` Expression" $ do
+  void $ token S.Lam
+  _lambdaArg <- expressionP
+  void $ token S.FwdArrow
+  _lambdaBody <- expressionP
+  return S.Lambda {..}
+
 parensedP :: TushParser S.Expression
 parensedP = do
   void $ token S.LParen
   e <- expressionP
   void $ token S.RParen
   return e
+
+sequenceP :: TushParser S.Sequence
+sequenceP = do
+  void $ token S.Do
+  void $ token S.LBrace
+  exps <- MP.sepEndBy1 expressionP (token S.Semicolon)
+  void $ token S.RBrace
+  return $ S.Sequence $ fromList exps
 
 atomicP :: TushParser S.Expression
 atomicP = MP.try (S.EString <$> stringP)
@@ -136,6 +162,9 @@ atomicP = MP.try (S.EString <$> stringP)
           <|> MP.try (S.EVector <$> vectorP)
           <|> MP.try (S.EBool <$> boolP)
           <|> MP.try (S.EIte <$> iteP)
+          <|> MP.try (S.EBind <$> bindP)
+          <|> MP.try (S.ELambda <$> lambdaP)
+          <|> MP.try (S.ESequence <$> sequenceP)
           <|> MP.try parensedP
           <|> (S.EName <$> nameP)
 

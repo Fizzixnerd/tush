@@ -60,8 +60,6 @@ data Token = TIdentifier Text
            | RBracket
            | LParen
            | RParen
-           | LBrace
-           | RBrace
            | Colon
            | Newline
            | Dash
@@ -78,15 +76,24 @@ data Token = TIdentifier Text
            | Period
            | DollarSign
            | PercentSign
-           | SemiColon
            | BSlash
            | Plus
-           -- If-then-else (Ite)
+           -- if-then-else (ite)
            | If
            | Then
            | Else
            -- do
            | Do
+           | BwdArrow
+           | LBrace
+           | RBrace
+           | Semicolon
+           -- let
+           | Let
+           | In
+           -- lambda
+           | Lam
+           | FwdArrow
            -- bools
            | TTrue
            | TFalse
@@ -181,9 +188,33 @@ instance Show Builtin where
   show Builtin {..} = printf "<<Builtin Function %s>>" (unpack _builtinName)
 
 data Ite = Ite
-  { iteIf   :: Expression
-  , iteThen :: Expression
-  , iteElse :: Expression
+  { _iteIf   :: Expression
+  , _iteThen :: Expression
+  , _iteElse :: Expression
+  } deriving (Show, Typeable, Generic)
+
+data Bind = Bind
+  { _bindName :: Expression
+  , _bindValue :: Expression
+  , _bindBody :: Expression
+  } deriving (Show, Typeable, Generic)
+
+type Environment = Map Text Expression
+
+data Lambda = Lambda
+  { _lambdaArg :: Expression
+  , _lambdaBody :: Expression
+  } deriving (Show, Typeable, Generic)
+
+-- Lambda with attached env
+data EnvLambda = EnvLambda
+  { _envLambdaArg :: Expression
+  , _envLambdaBody :: Expression
+  , _envLambdaEnv :: Environment
+  } deriving (Show, Typeable, Generic)
+
+newtype Sequence = Sequence
+  { _sequenceExpressions :: Vector Expression
   } deriving (Show, Typeable, Generic)
 
 data Expression = ECall Call
@@ -195,9 +226,13 @@ data Expression = ECall Call
                 | EBool TushBool
                 | EBuiltin Builtin
                 | EIte Ite
+                | EBind Bind
+                | ELambda Lambda
+                | EEnvLambda EnvLambda
+                | ESequence Sequence
                 deriving (Show, Typeable, Generic)
 
-data Statement = SExpression Expression
+data Statement = SAssignment Name Expression
   deriving (Show, Typeable, Generic)
 
 mconcat <$> mapM makeLenses
@@ -210,4 +245,7 @@ mconcat <$> mapM makeLenses
   , ''Call
   , ''TushVector
   , ''TushInt
+  , ''Ite
+  , ''Bind
+  , ''Lambda
   ]
