@@ -19,6 +19,7 @@ import Text.Printf
 import qualified System.Process.Typed as P
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.List as L
+import qualified System.Directory as D
 
 
 -- | Class for making pretty-printable show instances.
@@ -52,7 +53,7 @@ data DebugInfo = DebugInfo { _diStart :: !(Row, Col)
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 type DToken = DebugToken DebugInfo
-data Relativity = Relative | Absolute | PATH
+data Relativity = Relative | Absolute | PATH | HOME
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 type IsDir = Bool
 
@@ -168,13 +169,14 @@ data Path = Path
   , _pathIsDirectory :: Bool
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
-pathToFilePath :: MonadIO m => Path -> m FilePath
-pathToFilePath Path {..} =
-  let prefix = case _pathRelativity of
-        Relative -> "./"
-        Absolute -> "/"
-        PATH -> ""
-      directory = intersperse "/" $ pathComponentToFilePath <$> _pathDirectory
+pathToFilePathWithHomeAs :: MonadIO m => m FilePath -> Path -> m FilePath
+pathToFilePathWithHomeAs x Path {..} = do
+  prefix <- case _pathRelativity of
+              Relative -> return "./"
+              Absolute -> return "/"
+              PATH -> return ""
+              HOME -> x
+  let directory = intersperse "/" $ pathComponentToFilePath <$> _pathDirectory
       file = maybe "" (pathComponentToFilePath . fst) _pathFile
       mExtension = do
         f <- _pathFile
@@ -183,16 +185,24 @@ pathToFilePath Path {..} =
       dottedExtension = if null extension
                         then ""
                         else "." ++ extension
-      path = prefix ++ concat directory ++ (if not $ null directory then "/" else "") ++ file ++ dottedExtension
-  in
-    if _pathRelativity == PATH
+      postfix = if _pathIsDirectory then "/" else ""
+      path = (prefix </> concat directory) ++ (if not $ null directory then "/" else "") ++ file ++ dottedExtension ++ postfix
+  if _pathRelativity == PATH
     then do
       (_, p, _) <- P.readProcess $ fromString $ printf "which %s" (unpack path)
       return $ L.init $ BS.unpack p
     else return path
 
+pathToFilePath :: MonadIO m => Path -> m FilePath
+pathToFilePath = pathToFilePathWithHomeAs $ do
+  home <- liftIO D.getHomeDirectory
+  return $ home ++ "/"
+
+pathToVisualPath :: MonadIO m => Path -> m FilePath
+pathToVisualPath = pathToFilePathWithHomeAs (return "~/")
+
 instance TushShow Path where
-  tshow p = PP.text <$> pathToFilePath p
+  tshow p = PP.text <$> pathToVisualPath p
 
 newtype Identifier = Identifier { _unIdentifier :: Text }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
@@ -286,11 +296,27 @@ data Ite = Ite
   , _iteElse :: Expression
   } deriving (Show, Typeable, Generic)
 
+instance TushShow Ite where
+  tshow Ite {..} = do
+    i <- tshow _iteIf
+    t <- tshow _iteThen
+    e <- tshow _iteElse
+    return $ (PP.text "if" PP.<+> i)
+      PP.$+$ (PP.text "then" PP.<+> t)
+      PP.$+$ (PP.text "else" PP.<+> e)
+
 data Bind = Bind
   { _bindName :: Expression
   , _bindValue :: Expression
   , _bindBody :: Expression
   } deriving (Show, Typeable, Generic)
+
+instance TushShow Bind where
+  tshow Bind {..} = do
+    n <- tshow _bindName
+    v <- tshow _bindValue
+    b <- tshow _bindBody
+    return $ PP.text "let" PP.<+> n PP.<+> PP.char '=' PP.<+> v PP.<+> PP.text "in" PP.<+> b
 
 type Environment = Map Text Expression
 
@@ -299,6 +325,12 @@ data Lambda = Lambda
   , _lambdaBody :: Expression
   } deriving (Show, Typeable, Generic)
 
+instance TushShow Lambda where
+  tshow Lambda {..} = do
+    a <- tshow _lambdaArg
+    b <- tshow _lambdaBody
+    return $ (PP.char '\\' <> a) PP.<+> PP.text "->" PP.<+> b
+
 -- Lambda with attached env
 data EnvLambda = EnvLambda
   { _envLambdaArg :: Expression
@@ -306,9 +338,20 @@ data EnvLambda = EnvLambda
   , _envLambdaEnv :: Environment
   } deriving (Show, Typeable, Generic)
 
+instance TushShow EnvLambda where
+  tshow EnvLambda {..} = do
+    a <- tshow _envLambdaArg
+    b <- tshow _envLambdaBody
+    return $ (PP.char '\\' <> a) PP.<+> PP.text "->" PP.<+> b
+
 newtype Sequence = Sequence
   { _sequenceExpressions :: Vector Expression
   } deriving (Show, Typeable, Generic)
+
+instance TushShow Sequence where
+  tshow (Sequence s) = do
+    s' <- forM s tshow
+    return $ PP.text "do" PP.<+> (PP.braces $ PP.hsep $ toList $ intersperse (PP.text "; ") s')
 
 data Expression = ECall Call
                 | EName Name
@@ -326,6 +369,23 @@ data Expression = ECall Call
                 | EEnvLambda EnvLambda
                 | ESequence Sequence
                 deriving (Show, Typeable, Generic)
+
+instance TushShow Expression where
+  tshow (ECall c) = tshow c
+  tshow (EName n) = tshow n
+  tshow (EPath p) = tshow p
+  tshow (EString s) = tshow s
+  tshow (EVector v) = tshow v
+  tshow (ETuple t) = tshow t
+  tshow (EInt i) = tshow i
+  tshow (EBool b) = tshow b
+  tshow (EChar c) = tshow c
+  tshow (EBuiltin b) = tshow b
+  tshow (EIte i) = tshow i
+  tshow (EBind b) = tshow b
+  tshow (ELambda l) = tshow l
+  tshow (EEnvLambda e) = tshow e
+  tshow (ESequence s) = tshow s
 
 data Statement = SAssignment Assignment
   deriving (Show, Typeable, Generic)

@@ -229,3 +229,12 @@ statementP = S.SAssignment <$> assignmentP
 
 parseS :: Text -> Either (MP.ParseError S.DToken (MP.ErrorFancy Void)) S.Statement
 parseS = parseWith statementP
+
+parseRawPath :: Text -> Either (MP.ParseError S.DToken (MP.ErrorFancy Void)) S.Path
+parseRawPath s =
+  let lexedToken = MP.runParser dRawPathT "<input>" s
+      lexed = S.TushTokenStream . singleton <$> lexedToken
+  in
+  case lexed of
+    Left e -> error $ show e
+    Right x -> MP.runParser (_unTushParser pathP) "<tokens>" x

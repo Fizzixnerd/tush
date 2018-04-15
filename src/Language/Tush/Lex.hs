@@ -117,21 +117,31 @@ operatorT = S.TOperator . fromString <$> (some $ MP.satisfy $ \c ->
 dOperatorT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dOperatorT = MP.label "Operator" $ mkDTokenP operatorT
 
-pathT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
-pathT = do
-  relPath <- MP.optional $ MP.eitherP (MP.char '.') (MP.char '!')
+pathWithSyntaxT :: (Char -> Bool) -> MP.Parsec (MP.ErrorFancy Void) Text S.Token
+pathWithSyntaxT allowChar = do
+  relPath <- MP.optional $ MP.eitherP (MP.char '~') (MP.eitherP (MP.char '.') (MP.char '!'))
   let relativity = case relPath of
         Nothing -> S.Absolute
-        (Just (Left _)) -> S.Relative
-        (Just (Right _)) -> S.PATH
+        Just (Right (Left _)) -> S.Relative
+        Just (Right (Right _)) -> S.PATH
+        Just (Left _) -> S.HOME
   pcs <- some $ do
     void $ MP.char '/'
-    many $ MP.satisfy $ \c -> c /= '/' && (not $ isSpace c) && (not $ isReserved c)
+    many $ MP.satisfy $ \c -> c /= '/' && allowChar c
   let isDir = null $ V.last $ fromList pcs
   return $ S.TPath
     (filter (not . null) $ fromList $ fromString <$> pcs)
     relativity
     isDir
+
+rawPathT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+rawPathT = pathWithSyntaxT $ const True
+
+dRawPathT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
+dRawPathT = MP.label "Raw Path" $ mkDTokenP rawPathT
+
+pathT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+pathT = pathWithSyntaxT $ \c -> (not $ isSpace c) && (not $ isSyntax c)
 
 dPathT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dPathT = MP.label "Path" $ mkDTokenP pathT

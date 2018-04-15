@@ -18,7 +18,7 @@ import Control.Lens
 
 run_ :: MonadIO m => S.Path -> Vector Text -> m (Int, Text, Text)
 run_ p args = do
-  p' <- pathToFilePath p
+  p' <- S.pathToFilePath p
   (ec, out, err) <- P.readProcess $ P.proc p' (toList $ unpack <$> args)
   let outString = pack $ BS.unpack out :: Text
       errString = pack $ BS.unpack err :: Text
@@ -109,13 +109,16 @@ ls = S.Builtin "ls" $ \case
     if not $ p ^. S.pathIsDirectory
     then error $ printf "Expected a directory as the argument to `ls', got %s" (show p)
     else do
-      p' <- pathToFilePath p
+      p' <- S.pathToFilePath p
       contents <- D.listDirectory $ unpack p'
       paths <- forM contents $ \fp -> do
-        isDir <- D.doesDirectoryExist fp
+        isDir <- D.doesDirectoryExist $ p' </> fp
         let postfix = if isDir then "/" else ""
-        let Just path =  relativeFilePathToPath (fp ++ postfix)
+        let Just path = relativeFilePathToPath (fp ++ postfix)
             Just path' = pathJoin p path
         return $ S.EPath path'
       return $ S.EVector $ S.TushVector $ fromList paths
   x -> error $ printf "Expected a Path as the argument to `ls', got %s" (show x)
+
+debugShow :: S.Builtin
+debugShow = S.Builtin "debugShow" $ \s -> return $ S.EString $ S.TushString $ fromString $ show s

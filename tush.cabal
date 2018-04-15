@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c7faae5a703152973798d987156b81bac890e76cdff9d8b754bb6effe201705a
+-- hash: 02897eb5eb6567e31be182ee6ac7ac8970b83b95e8c86eb431c8194a00a6be21
 
 name:           tush
 version:        0.1.0.0
@@ -71,7 +71,7 @@ library
       Paths_tush
   default-language: Haskell2010
 
-executable tush-exe
+executable tush
   main-is: Main.hs
   hs-source-dirs:
       app

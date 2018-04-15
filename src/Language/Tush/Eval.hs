@@ -26,6 +26,7 @@ startEnv = M.fromList [ ("run", S.EBuiltin run)
                       , ("==", S.EBuiltin eq)
                       , ("!", S.EBuiltin idx)
                       , ("ls", S.EBuiltin ls)
+                      , ("debugShow", S.EBuiltin debugShow)
                       ]
 
 evalE :: S.Environment -> S.Builtin

@@ -54,7 +54,7 @@ library:
   source-dirs: src
 
 executables:
-  tush-exe:
+  tush:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
