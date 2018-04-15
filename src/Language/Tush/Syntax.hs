@@ -10,11 +10,20 @@ module Language.Tush.Syntax where
 
 import qualified Text.Megaparsec.Stream as MP
 import qualified Text.Megaparsec.Pos as MP
-import ClassyPrelude
+import ClassyPrelude hiding (tshow)
 import Control.Lens
 import Data.Data
 import qualified Data.Vector as V
+import qualified Text.PrettyPrint as PP
 import Text.Printf
+import qualified System.Process.Typed as P
+import qualified Data.ByteString.Lazy.Char8 as BS
+import qualified Data.List as L
+
+
+-- | Class for making pretty-printable show instances.
+class TushShow a where
+  tshow :: a -> IO PP.Doc
 
 -- * Parsing Bookkeeping
 
@@ -52,6 +61,7 @@ data Token = TIdentifier Text
            | TPath (Vector Text) Relativity IsDir
            | TString Text
            | TInt Int
+           | TChar Char
            -- symbols and punctuation
            | Equals
            | LAngle
@@ -78,6 +88,7 @@ data Token = TIdentifier Text
            | PercentSign
            | BSlash
            | Plus
+           | Bang
            -- if-then-else (ite)
            | If
            | Then
@@ -138,8 +149,17 @@ instance MP.Stream TushTokenStream where
 newtype PathComponent = PathComponent Text
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+pathComponentToFilePath :: PathComponent -> FilePath
+pathComponentToFilePath (PathComponent pc) = unpack pc
+
+instance TushShow PathComponent where
+  tshow (PathComponent pc) = return $ PP.text $ unpack pc
+
 newtype PathExtension = PathExtension { _unPathExtension :: Text }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance TushShow PathExtension where
+  tshow (PathExtension pe) = return $ PP.text "." <> (PP.text $ unpack pe)
 
 data Path = Path
   { _pathDirectory :: Vector PathComponent
@@ -148,14 +168,49 @@ data Path = Path
   , _pathIsDirectory :: Bool
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+pathToFilePath :: MonadIO m => Path -> m FilePath
+pathToFilePath Path {..} =
+  let prefix = case _pathRelativity of
+        Relative -> "./"
+        Absolute -> "/"
+        PATH -> ""
+      directory = intersperse "/" $ pathComponentToFilePath <$> _pathDirectory
+      file = maybe "" (pathComponentToFilePath . fst) _pathFile
+      mExtension = do
+        f <- _pathFile
+        snd f
+      extension = maybe "" (unpack . _unPathExtension) mExtension
+      dottedExtension = if null extension
+                        then ""
+                        else "." ++ extension
+      path = prefix ++ concat directory ++ (if not $ null directory then "/" else "") ++ file ++ dottedExtension
+  in
+    if _pathRelativity == PATH
+    then do
+      (_, p, _) <- P.readProcess $ fromString $ printf "which %s" (unpack path)
+      return $ L.init $ BS.unpack p
+    else return path
+
+instance TushShow Path where
+  tshow p = PP.text <$> pathToFilePath p
+
 newtype Identifier = Identifier { _unIdentifier :: Text }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance TushShow Identifier where
+  tshow (Identifier i) = return $ PP.text $ unpack i
 
 newtype Operator = Operator { _unOperator :: Text }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+instance TushShow Operator where
+  tshow (Operator o) = return $ PP.text $ unpack o
+
 newtype TushString = TushString { _unTushString :: Text }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance TushShow TushString where
+  tshow (TushString s) = return $ PP.text $ unpack s
 
 data Name = NIdentifier Identifier
           | NOperator Operator
@@ -165,27 +220,65 @@ nameToText :: Name -> Text
 nameToText (NIdentifier (Identifier x)) = x
 nameToText (NOperator (Operator x)) = x
 
+instance TushShow Name where
+  tshow n = return $ PP.text $ unpack $ nameToText n
+
 data Call = Call
   { _callFunc :: Expression
   , _callOperand :: Expression
   } deriving (Show, Typeable, Generic)
 
+instance TushShow Call where
+  tshow Call {..} = do
+    f <- tshow _callFunc
+    o <- tshow _callOperand
+    return $ f PP.<+> o
+
 newtype TushVector = TushVector { _unTushVector :: Vector Expression }
   deriving (Show, Typeable, Generic)
+
+instance TushShow TushVector where
+  tshow (TushVector v) = do
+    v' <- forM v tshow
+    return $ PP.char '[' <> (PP.hsep $ toList v') <> PP.char ']'
+
+newtype TushTuple = TushTuple { _unTushTuple :: (Expression, Expression) }
+  deriving (Show, Typeable, Generic)
+
+instance TushShow TushTuple where
+  tshow (TushTuple t) = do
+    f <- tshow $ fst t
+    s <- tshow $ snd t
+    return $ PP.char '(' <> f <> PP.text ", " <> s <> PP.char ')'
 
 newtype TushInt = TushInt { _unTushInt :: Int }
   deriving (Eq, Ord, Show, Data, Typeable, Generic, Num)
 
+instance TushShow TushInt where
+  tshow (TushInt i) = return $ PP.int i
+
+newtype TushChar = TushChar { _unTushChar :: Char }
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance TushShow TushChar where
+  tshow (TushChar c) = return $ PP.text $ show c
+
 newtype TushBool = TushBool { _unTushBool :: Bool }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance TushShow TushBool where
+  tshow (TushBool b) = return $ PP.text $ show b
 
 data Builtin = Builtin
   { _builtinName :: Text
   , _builtinFunc :: Expression -> IO Expression
-  }
+  } deriving (Typeable, Generic)
 
 instance Show Builtin where
   show Builtin {..} = printf "<<Builtin Function %s>>" (unpack _builtinName)
+
+instance TushShow Builtin where
+  tshow b = return $ PP.text $ show b
 
 data Ite = Ite
   { _iteIf   :: Expression
@@ -222,8 +315,10 @@ data Expression = ECall Call
                 | EPath Path
                 | EString TushString
                 | EVector TushVector
+                | ETuple TushTuple
                 | EInt TushInt
                 | EBool TushBool
+                | EChar TushChar
                 | EBuiltin Builtin
                 | EIte Ite
                 | EBind Bind
@@ -232,8 +327,13 @@ data Expression = ECall Call
                 | ESequence Sequence
                 deriving (Show, Typeable, Generic)
 
-data Statement = SAssignment Name Expression
+data Statement = SAssignment Assignment
   deriving (Show, Typeable, Generic)
+
+data Assignment = Assignment
+                  { _assignmentName :: Name
+                  , _assignmentValue :: Expression
+                  } deriving (Show, Typeable, Generic)
 
 mconcat <$> mapM makeLenses
   [ ''Path
@@ -245,7 +345,9 @@ mconcat <$> mapM makeLenses
   , ''Call
   , ''TushVector
   , ''TushInt
+  , ''TushChar
   , ''Ite
   , ''Bind
   , ''Lambda
+  , ''Assignment
   ]

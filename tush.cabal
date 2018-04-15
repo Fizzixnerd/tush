@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6d5bb99bf1dd741c7f30394f9e0e734550946dbe5223f003ab1c8d76394997a3
+-- hash: c7faae5a703152973798d987156b81bac890e76cdff9d8b754bb6effe201705a
 
 name:           tush
 version:        0.1.0.0
@@ -36,6 +36,7 @@ library
     , bytestring
     , classy-prelude
     , containers
+    , directory
     , equivalence
     , exceptions
     , ghci-pretty
@@ -46,6 +47,7 @@ library
     , llvm-hs-pure
     , megaparsec
     , mtl
+    , pretty
     , sbv
     , tasty
     , tasty-hspec
@@ -81,6 +83,7 @@ executable tush-exe
     , bytestring
     , classy-prelude
     , containers
+    , directory
     , equivalence
     , exceptions
     , ghci-pretty
@@ -91,6 +94,7 @@ executable tush-exe
     , llvm-hs-pure
     , megaparsec
     , mtl
+    , pretty
     , sbv
     , tasty
     , tasty-hspec
@@ -118,6 +122,7 @@ test-suite tush-test
     , bytestring
     , classy-prelude
     , containers
+    , directory
     , equivalence
     , exceptions
     , ghci-pretty
@@ -128,6 +133,7 @@ test-suite tush-test
     , llvm-hs-pure
     , megaparsec
     , mtl
+    , pretty
     , sbv
     , tasty
     , tasty-hspec

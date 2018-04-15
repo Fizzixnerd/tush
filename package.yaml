@@ -28,6 +28,7 @@ dependencies:
   - containers
   - equivalence
   - exceptions
+  - directory
   - haskeline
   - hspec
   - llvm-hs
@@ -44,6 +45,7 @@ dependencies:
   - uniplate
   - lens
   - ghci-pretty
+  - pretty
   - typed-process
 
 ghc-options:

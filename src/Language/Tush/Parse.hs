@@ -63,16 +63,16 @@ pathP = MP.label "Path" $ do
                        else V.init pcs'
       _pathFile = if null pcs'
                   then Nothing
-                  else let f = V.last pcs
-                           fparts = fromList $ splitElem '.' f
-                           fname = if length fparts == 1
-                                   then S.PathComponent $ fparts V.! 0
-                                   else S.PathComponent $ concat $ V.init $ V.init $ intersperse "." fparts
-                           fext = if length fparts == 1
-                                  then Nothing
-                                  else Just $ S.PathExtension $ V.last fparts
-                       in
-                         Just (fname, fext)
+                  else
+                    let f = V.last pcs
+                        fparts = fromList $ splitElem '.' f
+                        (fname, fext) = if length fparts == 1
+                                        then (S.PathComponent $ fparts V.! 0, Nothing)
+                                        else if null $ fparts V.! 0
+                                             then (S.PathComponent $ concat $ intersperse "." fparts, Nothing)
+                                             else (S.PathComponent $ concat $ V.init $ V.init $ intersperse "." fparts, Just $ S.PathExtension $ V.last fparts)
+                    in
+                      Just (fname, fext)
   return S.Path {..}
 
 stringP :: TushParser S.TushString
@@ -81,6 +81,13 @@ stringP = MP.label "String" $ do
     S.TString _ -> True
     _ -> False
   return $ S.TushString s
+
+charP :: TushParser S.TushChar
+charP  = MP.label "Char" $ do
+  S.TChar c <- satisfy $ \case
+    S.TChar _ -> True
+    _ -> False
+  return $ S.TushChar c
 
 intP :: TushParser S.TushInt
 intP = MP.label "Int" $ do
@@ -98,6 +105,15 @@ vectorP = MP.label "Vector" $ do
 
 vectorInternalP :: TushParser [S.Expression]
 vectorInternalP = MP.sepBy expressionP (token S.Comma)
+
+tupleP :: TushParser S.TushTuple
+tupleP = MP.label "Tuple" $ do
+  void $ token S.LParen
+  fstE <- expressionP
+  void $ token S.Comma
+  sndE <- expressionP
+  void $ token S.RParen
+  return $ S.TushTuple (fstE, sndE)
 
 nameP :: TushParser S.Name
 nameP = MP.label "Name" $
@@ -156,10 +172,12 @@ sequenceP = do
   return $ S.Sequence $ fromList exps
 
 atomicP :: TushParser S.Expression
-atomicP = MP.try (S.EString <$> stringP)
+atomicP =     MP.try (S.EString <$> stringP)
+          <|> MP.try (S.EChar <$> charP)
           <|> MP.try (S.EInt <$> intP)
           <|> MP.try (S.EPath <$> pathP)
           <|> MP.try (S.EVector <$> vectorP)
+          <|> MP.try (S.ETuple <$> tupleP)
           <|> MP.try (S.EBool <$> boolP)
           <|> MP.try (S.EIte <$> iteP)
           <|> MP.try (S.EBind <$> bindP)
@@ -196,5 +214,18 @@ parseWith p s =
       Left e -> error $ show e
       Right x -> MP.runParser (_unTushParser p) "<tokens>" x
 
-parse :: Text -> Either (MP.ParseError S.DToken (MP.ErrorFancy Void)) S.Expression
-parse = parseWith expressionP
+parseE :: Text -> Either (MP.ParseError S.DToken (MP.ErrorFancy Void)) S.Expression
+parseE = parseWith expressionP
+
+assignmentP :: TushParser S.Assignment
+assignmentP = do
+  _assignmentName <- nameP
+  void $ token S.Equals
+  _assignmentValue <- expressionP
+  return S.Assignment {..}
+
+statementP :: TushParser S.Statement
+statementP = S.SAssignment <$> assignmentP
+
+parseS :: Text -> Either (MP.ParseError S.DToken (MP.ErrorFancy Void)) S.Statement
+parseS = parseWith statementP

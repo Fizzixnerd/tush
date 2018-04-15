@@ -39,6 +39,8 @@ reservedSyntax = M.fromList [ ('[', S.LBracket)
                             , ('}', S.RBrace)
                             , ('"', S.DoubleQuote)
                             , ('\n', S.Newline)
+                            , (';', S.Semicolon)
+                            , (',', S.Comma)
                             , ('\\', S.Lam)
                             ]
 
@@ -56,12 +58,10 @@ reservedOps = M.fromList [ ('=', S.Equals)
                          , ('~', S.Tilde)
                          , ('^', S.Caret)
                          , ('/', S.FSlash)
-                         , (',', S.Comma)
-                         , ('.', S.Period)
                          , ('$', S.DollarSign)
                          , ('%', S.PercentSign)
-                         , (';', S.Semicolon)
                          , ('+', S.Plus)
+                         , ('!', S.Bang)
                          ]
 
 isSyntax :: Char -> Bool
@@ -148,6 +148,16 @@ stringT = do
 dStringT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dStringT = MP.label "String" $ mkDTokenP stringT
 
+charT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+charT = do
+  void $ MP.char '\''
+  c <- MP.anyChar
+  void $ MP.char '\''
+  return $ S.TChar c
+
+dCharT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
+dCharT = MP.label "Char" $ mkDTokenP charT
+
 boolT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
 boolT = do
   tf <- MP.eitherP (MP.string "True") (MP.string "False")
@@ -159,7 +169,7 @@ dBoolT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dBoolT = MP.label "Bool" $ mkDTokenP boolT
 
 equalsT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
-equalsT = MP.char '=' >> return S.Equals
+equalsT = MP.char '=' >> MP.spaceChar >> return S.Equals
 
 dEqualsT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dEqualsT = MP.label "'='" $ mkDTokenP equalsT
@@ -200,6 +210,12 @@ rbraceT = MP.char '}' >> return S.RBrace
 dRbraceT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dRbraceT = MP.label "'}'" $ mkDTokenP rbraceT
 
+commaT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+commaT = MP.char ',' >> return S.Comma
+
+dCommaT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
+dCommaT = MP.label "','" $ mkDTokenP commaT
+
 semicolonT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
 semicolonT = MP.char ';' >> return S.Semicolon
 
@@ -231,10 +247,12 @@ dToken = MP.try dReservedWordT
          <|> MP.try dRbracketT
          <|> MP.try dLbraceT
          <|> MP.try dRbraceT
+         <|> MP.try dCommaT
          <|> MP.try dSemicolonT
          <|> MP.try dNewlineT
          <|> MP.try dIntT
          <|> MP.try dStringT
+         <|> MP.try dCharT
          <|> MP.try dBoolT
          <|> MP.try dPathT
          <|> MP.try dOperatorT
