@@ -30,7 +30,12 @@ startEnv = M.fromList [ ("run", S.EBuiltin run)
                       , ("cd", S.EBuiltin cd)
                       , ("moveTo", S.EBuiltin moveTo)
                       , ("rename", S.EBuiltin rename)
+                      , ("copy", S.EBuiltin copy)
+                      , ("copyDir", S.EBuiltin copyDir)
+                      , ("remove", S.EBuiltin remove)
+                      , ("removeDir", S.EBuiltin removeDir)
                       ]
+
 
 evalE :: S.Environment -> S.Builtin
 evalE env = S.Builtin "evalE" $ \case

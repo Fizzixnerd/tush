@@ -7,7 +7,6 @@ import qualified Language.Tush.Syntax as S
 import Text.PrettyPrint
 import Language.Tush.Parse
 import Language.Tush.Eval
-import Control.Exception.Base
 import qualified System.Console.Haskeline as HL
 
 repl :: IO ()

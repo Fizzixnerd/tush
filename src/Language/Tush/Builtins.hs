@@ -159,7 +159,7 @@ rename :: S.Builtin
 rename = S.Builtin "rename" $ \case
   S.EPath p -> return $ S.EBuiltin $ S.Builtin "rename" $ \case
     S.EPath q ->
-      if q ^. S.pathIsDirectory /= q ^. S.pathIsDirectory
+      if p ^. S.pathIsDirectory /= q ^. S.pathIsDirectory
       then error $ printf "Mismatch: Both paths must be either directories or not; got %s and %s." (show p) (show q)
       else do
         p' <- S.pathToFilePath p
@@ -168,3 +168,53 @@ rename = S.Builtin "rename" $ \case
         return $ S.EUnit S.TushUnit
     y -> error $ printf "Expected a Path as the second argument to `rename', got %s." (show y)
   x -> error $ printf "Expected a Path as the first argument to `rename', got %s." (show x)
+
+copy :: S.Builtin
+copy = S.Builtin "copy" $ \case
+  S.EPath p -> return $ S.EBuiltin $ S.Builtin "copy" $ \case
+    S.EPath q ->
+      if p ^. S.pathIsDirectory || q ^. S.pathIsDirectory
+      then error $ printf "`copy' cannot copy directories (%s to %s); try `copyDir'." (show p) (show q)
+      else do
+        p' <- S.pathToFilePath p
+        q' <- S.pathToFilePath q
+        D.copyFile p' q'
+        return $ S.EUnit S.TushUnit
+    y -> error $ printf "Expected a Path as the second argument to `copy', got %s." (show y)
+  x -> error $ printf "Expected a Path as the first argument to `copy', got %s." (show x)
+
+copyDir :: S.Builtin
+copyDir = S.Builtin "copyDir" $ \case
+  S.EPath p -> return $ S.EBuiltin $ S.Builtin "copyDir" $ \case
+    S.EPath q ->
+      if not (p ^. S.pathIsDirectory) || not (q ^. S.pathIsDirectory)
+      then error $ printf "`copyDir' cannot copy non-directories (%s to %s); try `copy'" (show p) (show q)
+      else do
+        p' <- S.pathToFilePath p
+        q' <- S.pathToFilePath q
+        void $ P.readProcess $ fromString $ printf "cp -r '%s' '%s'" p' q'
+        return $ S.EUnit S.TushUnit
+    y -> error $ printf "Expected a Path as the second argument to `copyDir', got %s." (show y)
+  x -> error $ printf "Expected a Path as the first argument to `copyDir', got %s." (show x)
+
+remove :: S.Builtin
+remove = S.Builtin "remove" $ \case
+  S.EPath p ->
+    if p ^. S.pathIsDirectory
+    then error $ printf "`remove' cannot remove directories (like %s); try `removeDir'." (show p)
+    else do
+      p' <- S.pathToFilePath p
+      D.removeFile p'
+      return $ S.EUnit S.TushUnit
+  x -> error $ printf "Expected a Path as the argument to `remove', got %s." (show x)
+
+removeDir :: S.Builtin
+removeDir = S.Builtin "removeDir" $ \case
+  S.EPath p ->
+    if not $ p ^. S.pathIsDirectory
+    then error $ printf "`removeDir' cannot remove non-directories (like %s); try `remove'." (show p)
+    else do
+      p' <- S.pathToFilePath p
+      void $ P.readProcess $ fromString $ printf "rm -rf '%s'" p'
+      return $ S.EUnit S.TushUnit
+  x -> error $ printf "Expected a Path as the argument to `removeDir', got %s." (show x)
