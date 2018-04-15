@@ -27,6 +27,9 @@ startEnv = M.fromList [ ("run", S.EBuiltin run)
                       , ("!", S.EBuiltin idx)
                       , ("ls", S.EBuiltin ls)
                       , ("debugShow", S.EBuiltin debugShow)
+                      , ("cd", S.EBuiltin cd)
+                      , ("moveTo", S.EBuiltin moveTo)
+                      , ("rename", S.EBuiltin rename)
                       ]
 
 evalE :: S.Environment -> S.Builtin
@@ -41,6 +44,7 @@ evalE env = S.Builtin "evalE" $ \case
   i@(S.EInt _) -> return i
   b@(S.EBool _) -> return b
   c@(S.EChar _) -> return c
+  u@(S.EUnit _) -> return u
   S.ETuple (S.TushTuple (x, y)) -> do
     x' <- applyBuiltin (evalE env) x
     y' <- applyBuiltin (evalE env) y
@@ -61,7 +65,7 @@ evalE env = S.Builtin "evalE" $ \case
         let newEnv = M.insert textName value env
         applyBuiltin (evalE newEnv) _bindBody
       x -> error $ printf "Expected a Name for the variable binding, got %s" (show x)
-  (S.ELambda S.Lambda {..}) ->
+  S.ELambda S.Lambda {..} ->
     case _lambdaArg of
       S.EName _ -> return $ S.EEnvLambda S.EnvLambda { S._envLambdaArg = _lambdaArg
                                                      , S._envLambdaBody = _lambdaBody

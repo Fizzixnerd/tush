@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Language.Tush.Lex where
 
@@ -125,14 +126,24 @@ pathWithSyntaxT allowChar = do
         Just (Right (Left _)) -> S.Relative
         Just (Right (Right _)) -> S.PATH
         Just (Left _) -> S.HOME
-  pcs <- some $ do
-    void $ MP.char '/'
-    many $ MP.satisfy $ \c -> c /= '/' && allowChar c
+  pcs <- some (escapedAllowablePathComponentParserT allowChar)
   let isDir = null $ V.last $ fromList pcs
   return $ S.TPath
     (filter (not . null) $ fromList $ fromString <$> pcs)
     relativity
     isDir
+
+escapedAllowablePathComponentParserT :: (Char -> Bool) -> MP.Parsec (MP.ErrorFancy Void) Text String
+escapedAllowablePathComponentParserT allowChar = do
+  void $ MP.char '/'
+  chars <- many $ MP.eitherP (MP.char '\\' >> MP.satisfy (/= '/'))
+                             (MP.satisfy $ \c -> c /= '/' && allowChar c)
+  return $ flatten chars
+  where
+    flatten :: [Either Char Char] -> String
+    flatten = fmap $ \case
+      Left l -> l
+      Right r -> r
 
 rawPathT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
 rawPathT = pathWithSyntaxT $ const True
@@ -167,6 +178,12 @@ charT = do
 
 dCharT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dCharT = MP.label "Char" $ mkDTokenP charT
+
+unitT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
+unitT = MP.string "()" >> return S.TUnit
+
+dUnitT :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
+dUnitT = MP.label "()" $ mkDTokenP unitT
 
 boolT :: MP.Parsec (MP.ErrorFancy Void) Text S.Token
 boolT = do
@@ -249,6 +266,7 @@ space = void $ many $ MP.satisfy $ \c -> isSpace c && (c /= '\n')
 
 dToken :: MP.Parsec (MP.ErrorFancy Void) Text S.DToken
 dToken = MP.try dReservedWordT
+         <|> MP.try dUnitT
          <|> MP.try dLambdaT
          <|> MP.try dEqualsT
          <|> MP.try dLparenT

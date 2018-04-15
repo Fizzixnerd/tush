@@ -63,6 +63,7 @@ data Token = TIdentifier Text
            | TString Text
            | TInt Int
            | TChar Char
+           | TUnit
            -- symbols and punctuation
            | Equals
            | LAngle
@@ -142,11 +143,7 @@ instance MP.Stream TushTokenStream where
 
 -- * Paths
 --
--- A Path is a newtype wrapper around a Vector of PathComponents.
---
 -- PathComponents are just file/directory name literals at the moment.
---
--- We probably want to include globbing/regexes here somehow in a rational way.
 newtype PathComponent = PathComponent Text
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
@@ -273,6 +270,12 @@ newtype TushChar = TushChar { _unTushChar :: Char }
 instance TushShow TushChar where
   tshow (TushChar c) = return $ PP.text $ show c
 
+data TushUnit = TushUnit
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance TushShow TushUnit where
+  tshow _ = return $ PP.text "()"
+
 newtype TushBool = TushBool { _unTushBool :: Bool }
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
@@ -362,6 +365,7 @@ data Expression = ECall Call
                 | EInt TushInt
                 | EBool TushBool
                 | EChar TushChar
+                | EUnit TushUnit
                 | EBuiltin Builtin
                 | EIte Ite
                 | EBind Bind
@@ -380,6 +384,7 @@ instance TushShow Expression where
   tshow (EInt i) = tshow i
   tshow (EBool b) = tshow b
   tshow (EChar c) = tshow c
+  tshow (EUnit u) = tshow u
   tshow (EBuiltin b) = tshow b
   tshow (EIte i) = tshow i
   tshow (EBind b) = tshow b

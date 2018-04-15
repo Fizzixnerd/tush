@@ -89,6 +89,9 @@ charP  = MP.label "Char" $ do
     _ -> False
   return $ S.TushChar c
 
+unitP :: TushParser S.TushUnit
+unitP = MP.label "()" $ token S.TUnit >> return S.TushUnit
+
 intP :: TushParser S.TushInt
 intP = MP.label "Int" $ do
   S.TInt i <- satisfy $ \case
@@ -174,6 +177,7 @@ sequenceP = do
 atomicP :: TushParser S.Expression
 atomicP =     MP.try (S.EString <$> stringP)
           <|> MP.try (S.EChar <$> charP)
+          <|> MP.try (S.EUnit <$> unitP)
           <|> MP.try (S.EInt <$> intP)
           <|> MP.try (S.EPath <$> pathP)
           <|> MP.try (S.EVector <$> vectorP)
