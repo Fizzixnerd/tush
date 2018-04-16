@@ -14,7 +14,9 @@ import qualified Brick as B
 import qualified Brick.Focus as B
 import qualified Brick.Widgets.Edit as B
 import qualified Brick.Widgets.List as B
+import qualified Data.Vector as V
 import Control.Lens
+import Text.Printf
 
 import qualified Language.Tush.Syntax as S
 import Language.Tush
@@ -29,12 +31,14 @@ data TushiName = PromptCursor
                | ErrorViewport
                | InteractiveCursor
                | InteractiveViewport
+               | InteractiveDisplayList
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 data Tushi = Tushi
   { _tushiPromptEditor :: B.Editor Text TushiName
   , _tushiFocusRing :: B.FocusRing TushiName
   , _tushiOutputList :: B.List TushiName Text
+  , _tushiInteractiveDisplay :: B.List TushiName (B.Widget TushiName)
   } deriving (Typeable, Generic)
 
 makeLenses ''Tushi
@@ -42,12 +46,16 @@ makeLenses ''Tushi
 drawUI :: Tushi -> [B.Widget TushiName]
 drawUI t = [ui]
   where
-    pe = B.withFocusRing (t^.tushiFocusRing) (B.renderEditor (B.txt . unlines)) (t^.tushiPromptEditor)
-    l = B.withFocusRing (t^.tushiFocusRing) (B.renderList (\_ val -> B.txtWrap val)) (t^.tushiOutputList)
-    ui = B.txt "λ " B.<+> (B.hLimit 80 $ B.vLimit 1 pe) B.<=>
-         B.txt " " B.<=>
-         B.txt "Press Esc to quit." B.<=>
-         l
+    pe = B.withFocusRing (t^.tushiFocusRing) (B.renderEditor (B.txt . unlines))
+         (t^.tushiPromptEditor)
+    lst = B.withFocusRing (t^.tushiFocusRing) (B.renderList (\_ val -> B.txtWrap val))
+          (t^.tushiOutputList)
+    interactiveDisplay = B.withFocusRing (t^.tushiFocusRing)
+                         (B.renderList (\_ w -> w)) (t ^. tushiInteractiveDisplay)
+    ui = B.hLimit 80 (B.txt "λ " B.<+> B.vLimit 1 pe B.<=>
+                      B.txt " " B.<=>
+                      B.txt "Press Esc to quit." B.<=>
+                      lst) B.<+> interactiveDisplay
 
 appEvent :: Tushi -> B.BrickEvent TushiName e -> B.EventM TushiName (B.Next Tushi)
 appEvent t (B.VtyEvent ev) =
@@ -56,15 +64,41 @@ appEvent t (B.VtyEvent ev) =
     V.EvKey (V.KChar 'o') [V.MCtrl] -> B.continue $ t & tushiFocusRing %~ B.focusNext
     V.EvKey V.KEnter [] -> do
       let [expression] = B.getEditContents $ t ^. tushiPromptEditor
+          -- FIXME: This could be Left!
+          Right (S.TushTokenStream lexed) = lex expression
+      -- FIXME: evalEText can throw.
       value <- liftIO $ evalEText expression
       textValue <- liftIO $ S.tshow value
+      -- Update the OutputList and the Prompt; clear the InteractiveDisplay.
       let t' = t & tushiPromptEditor .~ emptyPrompt
                  & tushiOutputList %~ B.listInsert 0 (fromString $ PP.render textValue)
-      B.continue t'
+                 & tushiOutputList %~ B.listMoveUp
+                 & tushiInteractiveDisplay %~ B.listClear
+      -- Update the InteractiveDisplay based on last command run.
+      mainInteractiveWidget <- case lexed V.! 0 of
+        S.DebugToken { S._dtToken = lexed' } ->
+          case lexed' of
+            (S.TIdentifier "cd") -> do
+              dirContents <- liftIO $ evalEText "ls ./"
+              docContents <- liftIO $ S.tshow dirContents
+              let textContents = fromString $ PP.render docContents
+              return $ B.txtWrap textContents
+            S.TPath p S.PATH _  -> do
+              let cmdName = V.last p
+              S.ETuple (S.TushTuple ( (S.EInt ec)
+                                    , (S.ETuple (S.TushTuple ( (S.EString (S.TushString manContents))
+                                                             , _))))) <- liftIO $ evalEText $ fromString $ printf "!/man [\"%s\"]" (unpack cmdName)
+              if ec == 0
+                then return $ B.txt manContents
+                else return B.emptyWidget
+            _ -> return B.emptyWidget
+      let t'' = t' & tushiInteractiveDisplay %~ B.listInsert 0 mainInteractiveWidget
+      B.continue t''
     _ -> do
       next <- case B.focusGetCurrent (t^.tushiFocusRing) of
         Just PromptEditor -> B.handleEventLensed t tushiPromptEditor B.handleEditorEvent ev
         Just OutputList -> B.handleEventLensed t tushiOutputList B.handleListEvent ev
+        Just InteractiveDisplayList -> B.handleEventLensed t tushiInteractiveDisplay B.handleListEvent ev
         Nothing -> return t
         _ -> error "Unreachable: All focus ring possibility exhausted in `appEvent'."
       B.continue next
@@ -74,6 +108,8 @@ tushiMap :: B.AttrMap
 tushiMap = B.attrMap V.defAttr
            [ (B.editAttr, V.white `B.on` V.blue)
            , (B.editFocusedAttr, V.black `B.on` V.yellow)
+           , (B.listSelectedAttr, V.white `B.on` V.blue)
+           , (B.listSelectedFocusedAttr, V.black `B.on` V.yellow)
            ]
 
 appCursor :: Tushi -> [B.CursorLocation TushiName] -> Maybe (B.CursorLocation TushiName)
@@ -85,8 +121,9 @@ emptyPrompt = B.editorText PromptEditor (Just 1) ""
 initTushi :: Tushi
 initTushi = Tushi
   { _tushiPromptEditor = emptyPrompt
-  , _tushiFocusRing = B.focusRing [PromptEditor, OutputList]
+  , _tushiFocusRing = B.focusRing [PromptEditor, OutputList, InteractiveDisplayList]
   , _tushiOutputList = B.list OutputList empty 1
+  , _tushiInteractiveDisplay = B.list InteractiveDisplayList empty 1
   }
 
 tushiApp :: B.App Tushi e TushiName
