@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 02897eb5eb6567e31be182ee6ac7ac8970b83b95e8c86eb431c8194a00a6be21
+-- hash: 094e446aa53da75699961bed457fa37b60a39a11ab9ab28190a7da2539b79f2b
 
 name:           tush
 version:        0.1.0.0
@@ -33,6 +33,7 @@ library
       HUnit
     , QuickCheck
     , base
+    , brick
     , bytestring
     , classy-prelude
     , containers
@@ -57,9 +58,11 @@ library
     , typed-process
     , uniplate
     , vector
+    , vty
   exposed-modules:
       Language.Tush
       Language.Tush.Builtins
+      Language.Tush.Display
       Language.Tush.Eval
       Language.Tush.Lex
       Language.Tush.Parse
@@ -74,12 +77,13 @@ library
 executable tush
   main-is: Main.hs
   hs-source-dirs:
-      app
+      tush
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       HUnit
     , QuickCheck
     , base
+    , brick
     , bytestring
     , classy-prelude
     , containers
@@ -105,6 +109,47 @@ executable tush
     , typed-process
     , uniplate
     , vector
+    , vty
+  other-modules:
+      Paths_tush
+  default-language: Haskell2010
+
+executable tushi
+  main-is: Main.hs
+  hs-source-dirs:
+      tushi
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
+  build-depends:
+      HUnit
+    , QuickCheck
+    , base
+    , brick
+    , bytestring
+    , classy-prelude
+    , containers
+    , directory
+    , equivalence
+    , exceptions
+    , ghci-pretty
+    , haskeline
+    , hspec
+    , lens
+    , llvm-hs
+    , llvm-hs-pure
+    , megaparsec
+    , mtl
+    , pretty
+    , sbv
+    , tasty
+    , tasty-hspec
+    , tasty-hunit
+    , tasty-quickcheck
+    , text
+    , tush
+    , typed-process
+    , uniplate
+    , vector
+    , vty
   other-modules:
       Paths_tush
   default-language: Haskell2010
@@ -119,6 +164,7 @@ test-suite tush-test
       HUnit
     , QuickCheck
     , base
+    , brick
     , bytestring
     , classy-prelude
     , containers
@@ -144,6 +190,7 @@ test-suite tush-test
     , typed-process
     , uniplate
     , vector
+    , vty
   other-modules:
       Tush.Parse.ExprSpec
       Tush.Parse.LexSpec

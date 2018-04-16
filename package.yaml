@@ -30,6 +30,8 @@ dependencies:
   - exceptions
   - directory
   - haskeline
+  - vty
+  - brick
   - hspec
   - llvm-hs
   - llvm-hs-pure
@@ -56,13 +58,24 @@ library:
 executables:
   tush:
     main:                Main.hs
-    source-dirs:         app
+    source-dirs:         tush
     ghc-options:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
     - -Wall
 
+    dependencies:
+    - tush
+
+  tushi:
+    main: Main.hs
+    source-dirs: tushi
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall
     dependencies:
     - tush
 
