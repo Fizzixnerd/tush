@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Language.Tush.Display where
 
@@ -15,6 +16,9 @@ import qualified Brick.Focus as B
 import qualified Brick.Widgets.Edit as B
 import qualified Brick.Widgets.List as B
 import qualified Data.Vector as V
+import qualified System.Process.Typed as P
+import qualified Data.ByteString.Lazy.Char8 as BS
+import System.Exit
 import Control.Lens
 import Text.Printf
 
@@ -59,49 +63,63 @@ drawUI t = [ui]
 
 appEvent :: Tushi -> B.BrickEvent TushiName e -> B.EventM TushiName (B.Next Tushi)
 appEvent t (B.VtyEvent ev) =
-  case ev of
-    V.EvKey V.KEsc [] -> B.halt t
-    V.EvKey (V.KChar 'o') [V.MCtrl] -> B.continue $ t & tushiFocusRing %~ B.focusNext
-    V.EvKey V.KEnter [] -> do
-      let [expression] = B.getEditContents $ t ^. tushiPromptEditor
-          -- FIXME: This could be Left!
-          Right (S.TushTokenStream lexed) = lex expression
-      -- FIXME: evalEText can throw.
-      value <- liftIO $ evalEText expression
-      textValue <- liftIO $ S.tshow value
-      -- Update the OutputList and the Prompt; clear the InteractiveDisplay.
-      let t' = t & tushiPromptEditor .~ emptyPrompt
-                 & tushiOutputList %~ B.listInsert 0 (fromString $ PP.render textValue)
-                 & tushiOutputList %~ B.listMoveUp
-                 & tushiInteractiveDisplay %~ B.listClear
-      -- Update the InteractiveDisplay based on last command run.
-      mainInteractiveWidget <- case lexed V.! 0 of
-        S.DebugToken { S._dtToken = lexed' } ->
-          case lexed' of
-            (S.TIdentifier "cd") -> do
-              dirContents <- liftIO $ evalEText "ls ./"
-              docContents <- liftIO $ S.tshow dirContents
-              let textContents = fromString $ PP.render docContents
-              return $ B.txtWrap textContents
-            S.TPath p S.PATH _  -> do
-              let cmdName = V.last p
-              S.ETuple (S.TushTuple ( (S.EInt ec)
-                                    , (S.ETuple (S.TushTuple ( (S.EString (S.TushString manContents))
-                                                             , _))))) <- liftIO $ evalEText $ fromString $ printf "!/man [\"%s\"]" (unpack cmdName)
-              if ec == 0
-                then return $ B.txt manContents
-                else return B.emptyWidget
-            _ -> return B.emptyWidget
-      let t'' = t' & tushiInteractiveDisplay %~ B.listInsert 0 mainInteractiveWidget
-      B.continue t''
-    _ -> do
-      next <- case B.focusGetCurrent (t^.tushiFocusRing) of
-        Just PromptEditor -> B.handleEventLensed t tushiPromptEditor B.handleEditorEvent ev
-        Just OutputList -> B.handleEventLensed t tushiOutputList B.handleListEvent ev
-        Just InteractiveDisplayList -> B.handleEventLensed t tushiInteractiveDisplay B.handleListEvent ev
-        Nothing -> return t
-        _ -> error "Unreachable: All focus ring possibility exhausted in `appEvent'."
-      B.continue next
+  case B.focusGetCurrent (t^.tushiFocusRing) of
+    Nothing -> B.continue t
+    Just OutputList -> case ev of
+      V.EvKey V.KEsc [] -> B.halt t
+      V.EvKey (V.KChar 'o') [V.MCtrl] -> B.continue $ t & tushiFocusRing %~ B.focusNext
+      _ -> do
+        next <- B.handleEventLensed t tushiOutputList B.handleListEvent ev
+        B.continue next
+    Just InteractiveDisplayList -> case ev of
+      V.EvKey V.KEsc [] -> B.halt t
+      V.EvKey (V.KChar 'o') [V.MCtrl] -> B.continue $ t & tushiFocusRing %~ B.focusNext
+      _ -> do
+        next <- B.handleEventLensed t tushiInteractiveDisplay B.handleListEvent ev
+        B.continue next
+    Just PromptEditor ->
+      case ev of
+        V.EvKey V.KEsc [] -> B.halt t
+        V.EvKey (V.KChar 'o') [V.MCtrl] -> B.continue $ t & tushiFocusRing %~ B.focusNext
+        V.EvKey V.KEnter [] -> do
+          -- FIXME: This is irrefutable, but is it!?
+          let [expression] = B.getEditContents $ t ^. tushiPromptEditor
+              -- FIXME: This could be Left!
+              Right (S.TushTokenStream lexed) = lex expression
+          -- FIXME: evalEText can throw.
+          value <- liftIO $ evalEText expression
+          textValue <- liftIO $ S.tshow value
+          -- Update the OutputList and the Prompt; clear the InteractiveDisplay.
+          let t' = t & tushiPromptEditor .~ emptyPrompt
+                     & tushiOutputList %~ B.listInsert 0 (fromString $ PP.render textValue)
+                     & tushiOutputList %~ B.listMoveUp
+                     & tushiInteractiveDisplay %~ B.listClear
+          -- Update the InteractiveDisplay based on last command run.
+          interactiveWidgets <- case lexed V.! 0 of
+            S.DebugToken { S._dtToken = lexed' } ->
+              case lexed' of
+                (S.TIdentifier "cd") -> do
+                  dirContents <- liftIO $ evalEText "ls ./"
+                  docContents <- liftIO $ S.tshow dirContents
+                  let textContents = fromString $ PP.render docContents
+                  return $ singleton $ B.txtWrap textContents
+                S.TPath p S.PATH _  -> do
+                  let cmdName = V.last p
+                  (ec, manContents, _) <- liftIO $ P.readProcess $ P.shell $ printf "MANWIDTH=80 man --nh '%s' | col -bx" (unpack cmdName)
+                  if ec == ExitSuccess
+                    then return $ fromList $ B.txt <$> (\case
+                                                           "" -> " "
+                                                           x -> x) <$>
+                         (lines $ fromString $ BS.unpack manContents)
+                    else return empty
+                _ -> return empty
+          let t'' = t' & tushiInteractiveDisplay . B.listElementsL .~ interactiveWidgets
+                       & tushiInteractiveDisplay . B.listSelectedL ?~ 0
+          B.continue t''
+        _ -> do
+          next <- B.handleEventLensed t tushiPromptEditor B.handleEditorEvent ev
+          B.continue next
+    _ -> error "Unreachable: All focus ring possibility exhausted in `appEvent'."
 appEvent t _ = B.continue t
 
 tushiMap :: B.AttrMap
@@ -139,16 +157,3 @@ someFunc :: IO ()
 someFunc = do
   void $ B.defaultMain tushiApp initTushi
   putStrLn "goodbye."
-
--- someFunc :: IO ()
--- someFunc = do
---   cfg <- standardIOConfig
---   vty <- mkVty cfg
---   let line0 = string (defAttr `withForeColor` green) "first line"
---       line1 = string (defAttr `withBackColor` blue) "second line"
---       img = line0 <-> line1
---       pic = picForImage img
---   update vty pic
---   e <- nextEvent vty
---   shutdown vty
---   putStrLn $ fromString $ printf "Final event was: %s" (show e)
