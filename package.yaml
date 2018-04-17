@@ -21,32 +21,20 @@ description:         Please see the README on Github at <https://github.com/Fizz
 
 dependencies:
   - base
-  - HUnit
-  - QuickCheck
   - bytestring
   - classy-prelude
   - containers
-  - equivalence
   - exceptions
   - directory
   - haskeline
   - vty
   - brick
-  - hspec
-  - llvm-hs
-  - llvm-hs-pure
   - megaparsec
   - mtl
-  - sbv
-  - tasty
-  - tasty-hspec
-  - tasty-hunit
-  - tasty-quickcheck
   - text
+  - text-zipper
   - vector
-  - uniplate
   - lens
-  - ghci-pretty
   - pretty
   - typed-process
 

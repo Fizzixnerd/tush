@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 094e446aa53da75699961bed457fa37b60a39a11ab9ab28190a7da2539b79f2b
+-- hash: 9bc59e072a29cbf1a828818a2fe5d07c7c0bd87134e4e8c94593909cc667d6d3
 
 name:           tush
 version:        0.1.0.0
@@ -30,36 +30,25 @@ library
   hs-source-dirs:
       src
   build-depends:
-      HUnit
-    , QuickCheck
-    , base
+      base
     , brick
     , bytestring
     , classy-prelude
     , containers
     , directory
-    , equivalence
     , exceptions
-    , ghci-pretty
     , haskeline
-    , hspec
     , lens
-    , llvm-hs
-    , llvm-hs-pure
     , megaparsec
     , mtl
     , pretty
-    , sbv
-    , tasty
-    , tasty-hspec
-    , tasty-hunit
-    , tasty-quickcheck
     , text
+    , text-zipper
     , typed-process
-    , uniplate
     , vector
     , vty
   exposed-modules:
+      Data.History
       Language.Tush
       Language.Tush.Builtins
       Language.Tush.Display
@@ -80,34 +69,22 @@ executable tush
       tush
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
-      HUnit
-    , QuickCheck
-    , base
+      base
     , brick
     , bytestring
     , classy-prelude
     , containers
     , directory
-    , equivalence
     , exceptions
-    , ghci-pretty
     , haskeline
-    , hspec
     , lens
-    , llvm-hs
-    , llvm-hs-pure
     , megaparsec
     , mtl
     , pretty
-    , sbv
-    , tasty
-    , tasty-hspec
-    , tasty-hunit
-    , tasty-quickcheck
     , text
+    , text-zipper
     , tush
     , typed-process
-    , uniplate
     , vector
     , vty
   other-modules:
@@ -120,34 +97,22 @@ executable tushi
       tushi
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
-      HUnit
-    , QuickCheck
-    , base
+      base
     , brick
     , bytestring
     , classy-prelude
     , containers
     , directory
-    , equivalence
     , exceptions
-    , ghci-pretty
     , haskeline
-    , hspec
     , lens
-    , llvm-hs
-    , llvm-hs-pure
     , megaparsec
     , mtl
     , pretty
-    , sbv
-    , tasty
-    , tasty-hspec
-    , tasty-hunit
-    , tasty-quickcheck
     , text
+    , text-zipper
     , tush
     , typed-process
-    , uniplate
     , vector
     , vty
   other-modules:
@@ -161,34 +126,22 @@ test-suite tush-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
-      HUnit
-    , QuickCheck
-    , base
+      base
     , brick
     , bytestring
     , classy-prelude
     , containers
     , directory
-    , equivalence
     , exceptions
-    , ghci-pretty
     , haskeline
-    , hspec
     , lens
-    , llvm-hs
-    , llvm-hs-pure
     , megaparsec
     , mtl
     , pretty
-    , sbv
-    , tasty
-    , tasty-hspec
-    , tasty-hunit
-    , tasty-quickcheck
     , text
+    , text-zipper
     , tush
     , typed-process
-    , uniplate
     , vector
     , vty
   other-modules:

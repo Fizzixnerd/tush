@@ -35,8 +35,8 @@ startEnv = M.fromList [ ("run", S.EBuiltin run)
                       , ("copyDir", S.EBuiltin copyDir)
                       , ("remove", S.EBuiltin remove)
                       , ("removeDir", S.EBuiltin removeDir)
+                      , ("error", S.EBuiltin tushError)
                       ]
-
 
 evalE :: S.Environment -> S.Builtin
 evalE env = S.Builtin "evalE" $ \case
@@ -85,7 +85,8 @@ evalE env = S.Builtin "evalE" $ \case
                                                      , S._envLambdaBody = _lambdaBody
                                                      , S._envLambdaEnv = env
                                                      }
-      x -> error $ printf "Lambda argument must be a Name, got %s" (show x)
+      x -> throwM S.PatternMatchError
+           { S._patternMatchErrorPattern = x }
   l@(S.EEnvLambda _) -> return l
   S.ESequence S.Sequence {..} ->
     V.last <$> mapM (applyBuiltin (evalE env)) _sequenceExpressions
@@ -104,8 +105,14 @@ evalE env = S.Builtin "evalE" $ \case
           S.PATH -> do
             p' <- applyBuiltin run p
             applyBuiltin (evalE env) (S.ECall $ S.Call p' op)
-          _ -> error $ printf "Could not run non-PATH Path %s" (show p)
-      _ -> error $ printf "Could not call %s." (show fn)
+          _ -> throwM S.CallError
+               { S._callErrorFunction = _callFunc
+               , S._callErrorValue = fn
+               }
+      _ -> throwM S.CallError
+           { S._callErrorFunction = _callFunc
+           , S._callErrorValue = fn
+           }
 
 evalS :: MonadIO m => S.Environment -> S.Statement -> m S.Environment
 evalS env statement =
@@ -117,18 +124,20 @@ evalS env statement =
 
 evalEText :: MonadIO m => Text -> m S.Expression
 evalEText t =
-  let Right parsed = parseE t
-  in
-    applyBuiltin (evalE startEnv) parsed
+  case parseE t of
+    Left e -> return $ S.EError $ S.Error $ tshow e
+    Right parsed -> applyBuiltin (evalE startEnv) parsed
 
 evalSText :: MonadIO m => Text -> m S.Environment
 evalSText t =
+  -- FIXME: Pattern match.
   let Right parsed = parseS t
   in
     evalS startEnv parsed
 
 evalLinearProgramText :: MonadIO m => Text -> m S.Environment
 evalLinearProgramText t =
+  -- FIXME: Pattern match.
   let Right statements = parseWith (many statementP) t
   in
     foldM evalS startEnv (fromList statements :: Vector S.Statement)

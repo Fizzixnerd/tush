@@ -10,6 +10,8 @@ module Language.Tush.Display where
 import ClassyPrelude
 import qualified Text.PrettyPrint as PP
 import Data.Data
+import Data.History
+import Data.Text.Zipper
 import qualified Graphics.Vty as V
 import qualified Brick as B
 import qualified Brick.Focus as B
@@ -43,6 +45,8 @@ data Tushi = Tushi
   , _tushiFocusRing :: B.FocusRing TushiName
   , _tushiOutputList :: B.List TushiName Text
   , _tushiInteractiveDisplay :: B.List TushiName (B.Widget TushiName)
+  , _tushiInputHistory :: History Text
+  , _tushiHistoryLocation :: Maybe Int
   } deriving (Typeable, Generic)
 
 makeLenses ''Tushi
@@ -81,47 +85,90 @@ appEvent t (B.VtyEvent ev) =
       case ev of
         V.EvKey V.KEsc [] -> B.halt t
         V.EvKey (V.KChar 'o') [V.MCtrl] -> B.continue $ t & tushiFocusRing %~ B.focusNext
+        V.EvKey (V.KChar 'f') [V.MCtrl] -> do
+          t' <- B.handleEventLensed t tushiPromptEditor B.handleEditorEvent (V.EvKey V.KRight [])
+          B.continue t'
+        V.EvKey (V.KChar 'b') [V.MCtrl] -> do
+          t' <- B.handleEventLensed t tushiPromptEditor B.handleEditorEvent (V.EvKey V.KLeft [])
+          B.continue t'
+        V.EvKey (V.KChar 'n') [V.MCtrl] -> histNext t
+        V.EvKey V.KDown [] -> histNext t
+        V.EvKey (V.KChar 'p') [V.MCtrl] -> histPrev t
+        V.EvKey V.KUp [] -> histPrev t
         V.EvKey V.KEnter [] -> do
           -- FIXME: This is irrefutable, but is it!?
           let [expression] = B.getEditContents $ t ^. tushiPromptEditor
-              -- FIXME: This could be Left!
-              Right (S.TushTokenStream lexed) = lex expression
-          -- FIXME: evalEText can throw.
-          value <- liftIO $ evalEText expression `catch`
-                   (\e -> return $ S.EError $ S.Error $ fromString $ displayException (e :: S.EvalException))
-          textValue <- liftIO $ S.tshow value
-          -- Update the OutputList and the Prompt; clear the InteractiveDisplay.
-          let t' = t & tushiPromptEditor .~ emptyPrompt
-                     & tushiOutputList %~ B.listInsert 0 (fromString $ PP.render textValue)
-                     & tushiOutputList %~ B.listMoveUp
-                     & tushiInteractiveDisplay %~ B.listClear
-          -- Update the InteractiveDisplay based on last command run.
-          interactiveWidgets <- case lexed V.! 0 of
-            S.DebugToken { S._dtToken = lexed' } ->
-              case lexed' of
-                (S.TIdentifier "cd") -> do
-                  dirContents <- liftIO $ evalEText "ls ./"
-                  docContents <- liftIO $ S.tshow dirContents
-                  let textContents = fromString $ PP.render docContents
-                  return $ singleton $ B.txtWrap textContents
-                S.TPath p S.PATH _  -> do
-                  let cmdName = V.last p
-                  (ec, manContents, _) <- liftIO $ P.readProcess $ P.shell $ printf "MANWIDTH=80 man --nh '%s' | col -bx" (unpack cmdName)
-                  if ec == ExitSuccess
-                    then return $ fromList $ B.txt . (\case
-                                                         "" -> " "
-                                                         x -> x) <$>
-                         (lines $ fromString $ BS.unpack manContents)
-                    else return empty
-                _ -> return empty
-          let t'' = t' & tushiInteractiveDisplay . B.listElementsL .~ interactiveWidgets
-                       & tushiInteractiveDisplay . B.listSelectedL ?~ 0
-          B.continue t''
+          case lex expression of
+            Left _ -> B.continue t
+            Right (S.TushTokenStream lexed) | null lexed -> B.continue t
+            Right (S.TushTokenStream lexed) -> do
+              value <- liftIO $ evalEText expression `catch`
+                       (\e -> return $ S.EError $ S.Error $ fromString $ displayException (e :: S.EvalException))
+              textValue <- liftIO $ S.tshow value
+              -- Update the OutputList and the Prompt; clear the InteractiveDisplay.
+              let t' = t & tushiPromptEditor .~ emptyPrompt
+                         & tushiOutputList %~ B.listInsert 0 (fromString $ PP.render textValue)
+                         & tushiOutputList %~ B.listMoveUp
+                         & tushiInteractiveDisplay %~ B.listClear
+                         & tushiHistoryLocation .~ Nothing
+                         & tushiInputHistory %~ historyPush expression
+              -- Update the InteractiveDisplay based on last command run.
+              interactiveWidgets <- case lexed V.! 0 of
+                S.DebugToken { S._dtToken = lexed' } ->
+                  case lexed' of
+                    (S.TIdentifier "cd") -> do
+                      dirContents <- liftIO $ evalEText "ls ./"
+                      docContents <- liftIO $ S.tshow dirContents
+                      let textContents = fromString $ PP.render docContents
+                      return $ singleton $ B.txtWrap textContents
+                    S.TPath p S.PATH _  -> do
+                      let cmdName = V.last p
+                      (ec, manContents, _) <- liftIO $ P.readProcess $ P.shell $ printf "MANWIDTH=80 man --nh '%s' | col -bx" (unpack cmdName)
+                      if ec == ExitSuccess
+                        then return $ fromList $ B.txt . (\case
+                                                             "" -> " "
+                                                             x -> x) <$>
+                             (lines $ fromString $ BS.unpack manContents)
+                        else return empty
+                    _ -> return empty
+              let t'' = t' & tushiInteractiveDisplay . B.listElementsL .~ interactiveWidgets
+                           & tushiInteractiveDisplay . B.listSelectedL ?~ 0
+              B.continue t''
         _ -> do
           next <- B.handleEventLensed t tushiPromptEditor B.handleEditorEvent ev
           B.continue next
-    _ -> error "Unreachable: All focus ring possibility exhausted in `appEvent'."
+    _ -> error "Unreachable: All focus ring possibilities exhausted in `appEvent'."
 appEvent t _ = B.continue t
+
+histNext :: Tushi -> B.EventM n (B.Next Tushi)
+histNext t = do
+  let hist = t ^. tushiInputHistory
+      newHistLocation =
+        case t ^. tushiHistoryLocation of
+          Nothing -> Nothing
+          Just 0 -> Nothing
+          Just i -> Just (i - 1)
+      histContents = maybe [] singleton $ do
+        i <- newHistLocation
+        historyLookup hist i
+      t' = t & tushiPromptEditor . B.editContentsL .~ textZipper histContents Nothing
+             & tushiHistoryLocation .~ newHistLocation
+  B.continue t'
+
+histPrev :: Tushi -> B.EventM n (B.Next Tushi)
+histPrev t = do
+  let hist = t ^. tushiInputHistory
+      newHistLocation =
+        case t ^. tushiHistoryLocation of
+          Nothing -> Just 0
+          Just l | l == historyLength hist - 1 -> Just l
+          Just i -> Just (i + 1)
+      histContents = maybe [] singleton $ do
+        i <- newHistLocation
+        historyLookup hist i
+      t' = t & tushiPromptEditor . B.editContentsL .~ textZipper histContents Nothing
+             & tushiHistoryLocation .~ newHistLocation
+  B.continue t'  
 
 tushiMap :: B.AttrMap
 tushiMap = B.attrMap V.defAttr
@@ -143,6 +190,8 @@ initTushi = Tushi
   , _tushiFocusRing = B.focusRing [PromptEditor, OutputList, InteractiveDisplayList]
   , _tushiOutputList = B.list OutputList empty 1
   , _tushiInteractiveDisplay = B.list InteractiveDisplayList empty 1
+  , _tushiInputHistory = historyEmpty
+  , _tushiHistoryLocation = Nothing
   }
 
 tushiApp :: B.App Tushi e TushiName

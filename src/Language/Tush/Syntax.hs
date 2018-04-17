@@ -21,8 +21,6 @@ import qualified System.Process.Typed as P
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.List as L
 import qualified System.Directory as D
-import Control.Monad.Catch
-import Control.Monad.Catch.Pure
 
 -- | Class for making pretty-printable show instances.
 class TushShow a where
@@ -425,14 +423,9 @@ data Assignment = Assignment
                   , _assignmentValue :: Expression
                   } deriving (Show, Typeable, Generic)
 
-
-
-newtype EvalM a = EvalM
-  { _runEvalM :: Catch a
-  } deriving (Typeable, Generic, Functor, Applicative, Monad, Alternative, MonadPlus,
-              MonadMask, MonadCatch, MonadThrow)
-
 data EvalException = forall e . Exception e => EvalException e
+
+instance Exception EvalException
 
 instance Show EvalException where
   show (EvalException e) = show e
@@ -474,6 +467,16 @@ instance Exception PatternMatchError where
   fromException = evalExceptionFromException
   displayException PatternMatchError {..} = printf "PatternMatchError: Pattern '%s' failed." (show _patternMatchErrorPattern)
 
+data CallError = CallError
+  { _callErrorFunction :: Expression
+  , _callErrorValue :: Expression
+  } deriving Show
+
+instance Exception CallError where
+  toException = evalExceptionToException
+  fromException = evalExceptionFromException
+  displayException CallError {..} = printf "CallError: Could not call '%s', which evaluates to '%s'." (show _callErrorFunction) (show _callErrorValue)
+
 mconcat <$> mapM makeLenses
   [ ''Path
   , ''PathExtension
@@ -489,6 +492,7 @@ mconcat <$> mapM makeLenses
   , ''Bind
   , ''Lambda
   , ''Assignment
-  , ''EvalM
   , ''TypeError
+  , ''PatternMatchError
+  , ''CallError
   ]
