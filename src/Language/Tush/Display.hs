@@ -78,6 +78,12 @@ appEvent t (B.VtyEvent ev) =
     Just InteractiveDisplayList -> case ev of
       V.EvKey V.KEsc [] -> B.halt t
       V.EvKey (V.KChar 'o') [V.MCtrl] -> B.continue $ t & tushiFocusRing %~ B.focusNext
+      V.EvKey (V.KChar 'n') [V.MCtrl] -> do
+        next <- B.handleEventLensed t tushiInteractiveDisplay B.handleListEvent (V.EvKey V.KDown [])
+        B.continue next
+      V.EvKey (V.KChar 'p') [V.MCtrl] -> do
+        next <- B.handleEventLensed t tushiInteractiveDisplay B.handleListEvent (V.EvKey V.KUp [])
+        B.continue next
       _ -> do
         next <- B.handleEventLensed t tushiInteractiveDisplay B.handleListEvent ev
         B.continue next
