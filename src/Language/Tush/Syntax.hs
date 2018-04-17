@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 module Language.Tush.Syntax where
 
@@ -20,7 +21,8 @@ import qualified System.Process.Typed as P
 import qualified Data.ByteString.Lazy.Char8 as BS
 import qualified Data.List as L
 import qualified System.Directory as D
-
+import Control.Monad.Catch
+import Control.Monad.Catch.Pure
 
 -- | Class for making pretty-printable show instances.
 class TushShow a where
@@ -356,6 +358,13 @@ instance TushShow Sequence where
     s' <- forM s tshow
     return $ PP.text "do" PP.<+> (PP.braces $ PP.hsep $ toList $ intersperse (PP.text "; ") s')
 
+data Error = Error
+  { _errorMessage :: Text
+  } deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance TushShow Error where
+  tshow (Error e) = return $ PP.text $ unpack e
+
 data Expression = ECall Call
                 | EName Name
                 | EPath Path
@@ -372,7 +381,22 @@ data Expression = ECall Call
                 | ELambda Lambda
                 | EEnvLambda EnvLambda
                 | ESequence Sequence
+                | EError Error
                 deriving (Show, Typeable, Generic)
+
+data Type = TyPath Relativity
+          | TyString
+          | TyVector Type
+          | TyTuple Type Type
+          | TySum Type Type
+          | TyInt
+          | TyBool
+          | TyChar
+          | TyUnit
+          | TyFunction Type Type
+          | TyError
+          | TyUnknown -- ^ Should never appear...
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance TushShow Expression where
   tshow (ECall c) = tshow c
@@ -391,6 +415,7 @@ instance TushShow Expression where
   tshow (ELambda l) = tshow l
   tshow (EEnvLambda e) = tshow e
   tshow (ESequence s) = tshow s
+  tshow (EError e) = tshow e
 
 data Statement = SAssignment Assignment
   deriving (Show, Typeable, Generic)
@@ -399,6 +424,55 @@ data Assignment = Assignment
                   { _assignmentName :: Name
                   , _assignmentValue :: Expression
                   } deriving (Show, Typeable, Generic)
+
+
+
+newtype EvalM a = EvalM
+  { _runEvalM :: Catch a
+  } deriving (Typeable, Generic, Functor, Applicative, Monad, Alternative, MonadPlus,
+              MonadMask, MonadCatch, MonadThrow)
+
+data EvalException = forall e . Exception e => EvalException e
+
+instance Show EvalException where
+  show (EvalException e) = show e
+
+evalExceptionToException :: Exception e => e -> SomeException
+evalExceptionToException = toException . EvalException
+
+evalExceptionFromException :: Exception e => SomeException -> Maybe e
+evalExceptionFromException x = do
+  EvalException a <- fromException x
+  cast a
+
+data UndefinedError = UndefinedError
+  { _undefinedErrorName :: Name
+  } deriving Show
+
+instance Exception UndefinedError where
+  toException = evalExceptionToException
+  fromException = evalExceptionFromException
+  displayException UndefinedError {..} = printf "UndefinedError: Name '%s' is undefined." (show _undefinedErrorName)
+
+data TypeError = TypeError
+  { _typeErrorExpected :: Type
+  , _typeErrorActual :: Type
+  , _typeErrorExpression :: Expression
+  } deriving Show
+
+instance Exception TypeError where
+  toException = evalExceptionToException
+  fromException = evalExceptionFromException
+  displayException TypeError {..} = printf "TypeError: Expected Type '%s', got '%s'.  In Expression: '%s'." (show _typeErrorExpected) (show _typeErrorActual) (show _typeErrorExpression)
+
+data PatternMatchError = PatternMatchError
+  { _patternMatchErrorPattern :: Expression
+  } deriving Show
+
+instance Exception PatternMatchError where
+  toException = evalExceptionToException
+  fromException = evalExceptionFromException
+  displayException PatternMatchError {..} = printf "PatternMatchError: Pattern '%s' failed." (show _patternMatchErrorPattern)
 
 mconcat <$> mapM makeLenses
   [ ''Path
@@ -415,4 +489,6 @@ mconcat <$> mapM makeLenses
   , ''Bind
   , ''Lambda
   , ''Assignment
+  , ''EvalM
+  , ''TypeError
   ]

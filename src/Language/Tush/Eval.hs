@@ -12,6 +12,7 @@ import qualified Data.Vector as V
 import Text.Printf
 import Language.Tush.Builtins
 import Language.Tush.Parse
+import Control.Monad.Catch
 
 applyBuiltin :: MonadIO m => S.Builtin -> S.Expression -> m S.Expression
 applyBuiltin S.Builtin {..} = liftIO . _builtinFunc
@@ -41,7 +42,9 @@ evalE :: S.Environment -> S.Builtin
 evalE env = S.Builtin "evalE" $ \case
   S.EName n -> case lookup (S.nameToText n) env of
     Just e  -> return e
-    Nothing -> error $ printf "Could not locate %s in environment: %s." (show n) (show env)
+    Nothing -> throwM S.UndefinedError
+      { S._undefinedErrorName = n
+      }
   p@(S.EPath _) -> return p
   s@(S.EString _) -> return s
   b@(S.EBuiltin _) -> return b
@@ -50,6 +53,7 @@ evalE env = S.Builtin "evalE" $ \case
   b@(S.EBool _) -> return b
   c@(S.EChar _) -> return c
   u@(S.EUnit _) -> return u
+  e@(S.EError _) -> return e
   S.ETuple (S.TushTuple (x, y)) -> do
     x' <- applyBuiltin (evalE env) x
     y' <- applyBuiltin (evalE env) y
@@ -61,7 +65,11 @@ evalE env = S.Builtin "evalE" $ \case
         if i''
         then applyBuiltin (evalE env) t
         else applyBuiltin (evalE env) e
-      x -> error $ printf "Expected Bool in if-then-else expression, got %s" (show x)
+      x -> throwM S.TypeError
+        { S._typeErrorExpected = S.TyBool
+        , S._typeErrorActual = S.TyUnknown
+        , S._typeErrorExpression = x
+        }
   S.EBind S.Bind {..} ->
     case _bindName of
       S.EName n -> do
@@ -69,7 +77,8 @@ evalE env = S.Builtin "evalE" $ \case
         value <- applyBuiltin (evalE env) _bindValue
         let newEnv = M.insert textName value env
         applyBuiltin (evalE newEnv) _bindBody
-      x -> error $ printf "Expected a Name for the variable binding, got %s" (show x)
+      x -> throwM S.PatternMatchError
+           { S._patternMatchErrorPattern = x }
   S.ELambda S.Lambda {..} ->
     case _lambdaArg of
       S.EName _ -> return $ S.EEnvLambda S.EnvLambda { S._envLambdaArg = _lambdaArg

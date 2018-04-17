@@ -87,7 +87,8 @@ appEvent t (B.VtyEvent ev) =
               -- FIXME: This could be Left!
               Right (S.TushTokenStream lexed) = lex expression
           -- FIXME: evalEText can throw.
-          value <- liftIO $ evalEText expression
+          value <- liftIO $ evalEText expression `catch`
+                   (\e -> return $ S.EError $ S.Error $ fromString $ displayException (e :: S.EvalException))
           textValue <- liftIO $ S.tshow value
           -- Update the OutputList and the Prompt; clear the InteractiveDisplay.
           let t' = t & tushiPromptEditor .~ emptyPrompt
@@ -107,9 +108,9 @@ appEvent t (B.VtyEvent ev) =
                   let cmdName = V.last p
                   (ec, manContents, _) <- liftIO $ P.readProcess $ P.shell $ printf "MANWIDTH=80 man --nh '%s' | col -bx" (unpack cmdName)
                   if ec == ExitSuccess
-                    then return $ fromList $ B.txt <$> (\case
-                                                           "" -> " "
-                                                           x -> x) <$>
+                    then return $ fromList $ B.txt . (\case
+                                                         "" -> " "
+                                                         x -> x) <$>
                          (lines $ fromString $ BS.unpack manContents)
                     else return empty
                 _ -> return empty
